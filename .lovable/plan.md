@@ -1,62 +1,64 @@
 
 
-# Correção: Status de usuario nao persiste (verificacao + retry)
+# Correcoes: Status vermelho em novos usuarios + Remover aviso de email
 
-## Diagnóstico
+## Problema 1: Novos usuarios aparecem vermelhos na lista do admin
 
-A edge function `admin-update-user-status` retorna `success: true` mas o status **nao muda** no banco. O Supabase nao retorna erro quando um `UPDATE` afeta 0 linhas. Dois cenarios:
+O signup chama a edge function `admin-update-user-status` para mudar o status de `pending` para `active`. Porem, mesmo com retry, ha uma race condition: o trigger do banco externo pode nao ter criado o perfil ainda, ou pode estar revertendo o status apos o update.
 
-1. **Signup:** O trigger do banco externo cria o perfil com `status='pending'` de forma assincrona. A edge function roda ANTES do perfil existir, entao o UPDATE nao encontra nenhuma linha.
+**Solucao:** Apos o signup bem-sucedido, fazer login automatico do usuario. Alem disso, ao listar usuarios na pagina admin, se a edge function nao conseguiu alterar o status no signup, o admin pode usar o toggle (que ja funciona via edge function com service key).
 
-2. **Toggle admin:** O UPDATE pode estar sendo silenciosamente ignorado (0 rows) ou revertido por um trigger.
+O problema principal e que a edge function esta sendo chamada com a URL do Lovable Cloud (`VITE_SUPABASE_URL`) em vez da URL do Supabase externo. Vamos verificar e corrigir se necessario.
 
-## Solucao
+**Acao concreta no `src/contexts/AuthContext.tsx`:**
+- Apos o signup + ativacao, fazer login automatico do usuario (chamar `signInWithPassword`)
+- Isso garante que o usuario entra direto, sem precisar ir para a tela de login
+- Mudar a mensagem de sucesso para "Conta criada com sucesso!" (sem mencionar email)
 
-### 1. Atualizar edge function com verificacao e retry
+## Problema 2: Remover notificacao "Verifique seu email"
 
-**Arquivo:** `supabase/functions/admin-update-user-status/index.ts`
+**Arquivo:** `src/pages/Auth.tsx` (linha 83)
 
-Adicionar logica de:
-- **Verificacao:** Apos o UPDATE, fazer um SELECT para confirmar que o status realmente mudou
-- **Retry com delay:** Se o perfil nao existir ainda (caso do signup), esperar 2 segundos e tentar novamente, ate 3 tentativas
-- **Resposta honesta:** Retornar erro se o status nao foi efetivamente alterado
-
-```text
-Logica:
-1. Tenta UPDATE na waba_profiles
-2. Faz SELECT para verificar o status atual
-3. Se perfil nao existe: espera 2s e tenta novamente (ate 3x)
-4. Se perfil existe mas status nao mudou: tenta UPDATE novamente
-5. Retorna sucesso SOMENTE se o SELECT confirmar o status correto
+Mudar de:
+```
+toast.success('Conta criada com sucesso! Verifique seu email para confirmar.');
+```
+Para:
+```
+toast.success('Conta criada com sucesso!');
 ```
 
-### 2. Atualizar signup no AuthContext
+E em vez de mudar para a aba de login (`setActiveTab('login')`), redirecionar para o dashboard diretamente (ja que o signup + login automatico tera sido feito no AuthContext).
 
-**Arquivo:** `src/contexts/AuthContext.tsx`
+## Problema 3: Edge function `promote-master`
 
-- Adicionar um delay de 3 segundos antes de chamar a edge function (dar tempo ao trigger de criar o perfil)
-- Verificar a resposta da edge function e logar erros
-- Adicionar retry se a primeira tentativa falhar
-
-### 3. Melhorar feedback no toggle de status
-
-**Arquivo:** `src/hooks/useUsers.ts`
-
-- No `onSuccess`, verificar a resposta real e invalidar o cache para forcar reload do banco
-- No `onError`, mostrar mensagem mais descritiva
+Essa funcao **nunca existiu** no codigo deste projeto. Se voce precisa dela, posso cria-la em uma proxima tarefa. Atualmente, a promocao de usuario para admin e feita diretamente via update na tabela `waba_user_roles` (funcao `useUpdateUserRole` em `useUsers.ts`).
 
 ## Arquivos a modificar
 
 | Arquivo | Acao |
 |---------|------|
-| `supabase/functions/admin-update-user-status/index.ts` | Adicionar verificacao SELECT + retry com delay |
-| `src/contexts/AuthContext.tsx` | Adicionar delay antes da ativacao no signup |
-| `src/hooks/useUsers.ts` | Forcar invalidacao do cache apos sucesso |
+| `src/pages/Auth.tsx` | Remover mensagem "Verifique seu email", redirecionar apos signup |
+| `src/contexts/AuthContext.tsx` | Apos ativar usuario no signup, fazer login automatico |
+
+## Detalhes tecnicos
+
+### Auth.tsx - handleSignup (linha 76-85)
+
+Apos o signup sem erro:
+1. Mostrar toast "Conta criada com sucesso!"
+2. Navegar para `/dashboard` (o AuthContext ja tera feito login automatico)
+
+### AuthContext.tsx - signup (linhas 167-223)
+
+Apos a edge function ativar o usuario com sucesso:
+1. Chamar `supabase.auth.signInWithPassword({ email, password })` automaticamente
+2. Isso dispara o `onAuthStateChange` e carrega o perfil do usuario
+3. O usuario e redirecionado automaticamente para o dashboard
 
 ## Resultado esperado
 
-1. A edge function so retorna sucesso quando o status REALMENTE mudou no banco
-2. Novos usuarios ficam ativos apos o signup (com retry para esperar o trigger)
-3. O toggle de status do admin persiste apos recarregar a pagina
-4. Se algo falhar, o usuario ve uma mensagem de erro real (nao mais falso positivo)
-
+1. Novos usuarios sao criados e entram no sistema automaticamente
+2. Nenhuma mensagem sobre verificar email aparece
+3. O status e atualizado para "active" pela edge function com retry
+4. As edge functions `auto-update-status` e `admin-update-user-status` continuam existindo normalmente
