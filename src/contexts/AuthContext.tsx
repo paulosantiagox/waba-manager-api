@@ -23,7 +23,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isMaster, setIsMaster] = useState(false);
 
-  const fetchUserProfile = useCallback(async (userId: string) => {
+  const fetchUserProfile = useCallback(async (userId: string): Promise<{ user: AppUser | null; reason?: 'not_found' | 'pending' | 'inactive' }> => {
     try {
       // Fetch profile
       const { data: profile, error: profileError } = await supabase
@@ -34,7 +34,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (profileError) {
         console.error('Error fetching profile:', profileError);
-        return null;
+        return { user: null, reason: 'not_found' };
+      }
+
+      if (!profile) {
+        return { user: null, reason: 'not_found' };
       }
 
       // Fetch role
@@ -51,33 +55,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const role = roleData?.role || 'user';
       setIsMaster(role === 'master');
 
-      // Block inactive users
-      if (profile?.status === 'inactive') {
+      // Block pending users
+      if (profile.status === 'pending') {
         setUser(null);
         setSession(null);
         setIsMaster(false);
         await supabase.auth.signOut();
-        return null;
+        return { user: null, reason: 'pending' };
       }
 
-      if (profile) {
-        const appUser: AppUser = {
-          id: profile.id,
-          name: profile.name || '',
-          email: profile.email || '',
-          role: role as 'master' | 'user',
-          photo: profile.photo || undefined,
-          status: profile.status || 'active',
-          createdAt: profile.created_at,
-          lastLogin: profile.last_login || undefined,
-        };
-        setUser(appUser);
-        return appUser;
+      // Block inactive users
+      if (profile.status === 'inactive') {
+        setUser(null);
+        setSession(null);
+        setIsMaster(false);
+        await supabase.auth.signOut();
+        return { user: null, reason: 'inactive' };
       }
-      return null;
+
+      const appUser: AppUser = {
+        id: profile.id,
+        name: profile.name || '',
+        email: profile.email || '',
+        role: role as 'master' | 'user',
+        photo: profile.photo || undefined,
+        status: profile.status || 'active',
+        createdAt: profile.created_at,
+        lastLogin: profile.last_login || undefined,
+      };
+      setUser(appUser);
+      return { user: appUser };
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
-      return null;
+      return { user: null, reason: 'not_found' };
     }
   }, []);
 
@@ -90,7 +100,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (currentSession?.user) {
           // Defer Supabase calls with setTimeout
           setTimeout(() => {
-            fetchUserProfile(currentSession.user.id);
+            fetchUserProfile(currentSession.user.id).then(({ user: appUser, reason }) => {
+              if (!appUser && reason) {
+                // User blocked during session refresh - sign out handled in fetchUserProfile
+                console.log(`[Auth] Profile blocked: ${reason}`);
+              }
+            });
           }, 0);
         } else {
           setUser(null);
@@ -108,7 +123,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
       setSession(existingSession);
       if (existingSession?.user) {
-        fetchUserProfile(existingSession.user.id).finally(() => {
+        fetchUserProfile(existingSession.user.id).then(({ user: appUser, reason }) => {
+          if (!appUser && reason === 'pending') {
+            setSession(null);
+          } else if (!appUser && reason === 'inactive') {
+            setSession(null);
+          }
+        }).finally(() => {
           setIsLoading(false);
         });
       } else {
@@ -133,12 +154,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: error.message };
       }
 
-      // Ensure inactive users cannot remain logged in
+      // Check profile status after login
       const signedInUserId = data.user?.id;
       if (signedInUserId) {
-        const appUser = await fetchUserProfile(signedInUserId);
+        const { user: appUser, reason } = await fetchUserProfile(signedInUserId);
         if (!appUser) {
-          return { error: 'Sua conta está desativada. Fale com o administrador.' };
+          if (reason === 'pending') {
+            return { error: 'Sua conta está aguardando aprovação do administrador.' };
+          } else if (reason === 'inactive') {
+            return { error: 'Sua conta está desativada. Fale com o administrador.' };
+          }
+          return { error: 'Perfil não encontrado. Tente novamente ou entre em contato com o administrador.' };
         }
       }
 
