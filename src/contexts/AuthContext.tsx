@@ -187,12 +187,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Atualizar status para 'active' via edge function (sobrescreve trigger do banco)
+      // Delay de 3s para dar tempo ao trigger do banco criar o perfil
       if (signUpData?.user?.id) {
         try {
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          
           const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
           const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
           
-          await fetch(`${supabaseUrl}/functions/v1/admin-update-user-status`, {
+          const response = await fetch(`${supabaseUrl}/functions/v1/admin-update-user-status`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -201,6 +204,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             },
             body: JSON.stringify({ userId: signUpData.user.id, status: 'active' }),
           });
+
+          const result = await response.json();
+          if (!response.ok || !result.success) {
+            console.error('[Auth] Falha ao ativar usuário:', result.error);
+          } else {
+            console.log('[Auth] Usuário ativado com sucesso:', result);
+          }
         } catch (e) {
           console.error('[Auth] Erro ao ativar usuário após signup:', e);
         }
