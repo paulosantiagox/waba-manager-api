@@ -1,87 +1,72 @@
 
 
-# Correção: Menu "Usuários" não aparece para conta master
+# Correção: Erro ao aprovar/alterar status de usuário
 
 ## Causa Raiz
 
-A tabela `waba_user_roles` contém **11 registros** para a conta `paulosantiago.adm@gmail.com`:
-
-| role |
-|------|
-| master |
-| admin |
-| usuario |
-| gerente |
-| coordenador |
-| supervisor |
-| vendedor |
-| operador |
-| atendente |
-| assistente |
-| visitante |
-
-O codigo em `AuthContext.tsx` (linha 45-49) usa `.maybeSingle()` para buscar a role:
+A funcao `useUpdateUserStatus` em `src/hooks/useUsers.ts` (linha 48-52) chama uma funcao RPC que **nao existe** no banco:
 
 ```typescript
-const { data: roleData, error: roleError } = await supabase
-  .from('waba_user_roles')
-  .select('role')
-  .eq('user_id', userId)
-  .maybeSingle();  // Espera 0 ou 1 resultado!
+const { data, error } = await supabase
+  .rpc('admin_set_user_status', {
+    target_user_id: userId,
+    new_status: status
+  });
 ```
 
-Quando recebe 11 linhas, o Supabase retorna um erro (PGRST116 - "multiple rows returned"). O codigo entao:
-1. Entra no `if (roleError)` e faz `console.error('Error fetching role:', roleError)` -- que e exatamente o erro visivel no console
-2. Define `role = roleData?.role || 'user'` -- como `roleData` e `null` (por causa do erro), `role` vira `'user'`
-3. Define `isMaster = false`
-4. O menu "Usuarios" nao aparece porque depende de `isMaster === true`
+O erro no console confirma:
+- `POST .../rpc/admin_set_user_status 404 (Not Found)`
+- `relation "user_roles" does not exist` (a funcao RPC referencia `user_roles` em vez de `waba_user_roles`)
 
 ## Solucao
 
-### Parte 1: Corrigir a consulta de role no AuthContext
+Substituir a chamada RPC por um **update direto** na tabela `waba_profiles`, que ja existe e funciona (o mesmo padrao usado em outras funcoes do arquivo).
 
-Alterar a query para buscar **todas** as roles do usuario e verificar se `'master'` esta entre elas.
+### Arquivo: `src/hooks/useUsers.ts`
 
-**Arquivo:** `src/contexts/AuthContext.tsx`
-
-Mudanca na linha 45-56:
-- Trocar `.maybeSingle()` por busca de todas as roles
-- Verificar se o array contem `'master'`
-- Usar a role de maior privilegio para o campo `user.role`
-
+**Antes (linhas 47-59):**
 ```typescript
-// Fetch roles (user may have multiple)
-const { data: rolesData, error: roleError } = await supabase
-  .from('waba_user_roles')
-  .select('role')
-  .eq('user_id', userId);
+mutationFn: async ({ userId, status }) => {
+  const { data, error } = await supabase
+    .rpc('admin_set_user_status', {
+      target_user_id: userId,
+      new_status: status
+    });
 
-if (roleError) {
-  console.error('Error fetching role:', roleError);
-}
+  if (error) throw error;
 
-const roles = rolesData?.map(r => r.role) || [];
-const hasMasterRole = roles.includes('master');
-const primaryRole = hasMasterRole ? 'master' : (roles[0] || 'user');
-setIsMaster(hasMasterRole);
+  const updated = data?.[0];
+  if (!updated) throw new Error('Nenhum usuário foi atualizado');
+
+  return { userId, status: updated.status };
+},
 ```
 
-### Parte 2: Limpar roles duplicadas (opcional mas recomendado)
+**Depois:**
+```typescript
+mutationFn: async ({ userId, status }) => {
+  const { error } = await supabase
+    .from('waba_profiles')
+    .update({ status })
+    .eq('id', userId);
 
-O banco tem muitas roles que nao sao usadas pelo sistema (gerente, coordenador, etc.). O sistema so reconhece `master` e `user`. As demais nao tem utilidade e podem ser limpas.
+  if (error) throw error;
 
-No entanto, isso nao e bloqueante -- a correcao da Parte 1 resolve o problema mesmo com multiplas roles.
+  return { userId, status };
+},
+```
+
+Mudanca simples: em vez de chamar uma funcao RPC inexistente, faz um UPDATE direto na coluna `status` da tabela `waba_profiles`. O resto da logica (optimistic update, cache sync, toast) permanece igual.
 
 ## Arquivos a Modificar
 
 | Arquivo | Acao |
 |---------|------|
-| `src/contexts/AuthContext.tsx` | Alterar query de role para suportar multiplas roles por usuario |
+| `src/hooks/useUsers.ts` | Substituir `supabase.rpc('admin_set_user_status')` por `supabase.from('waba_profiles').update()` |
 
 ## Resultado Esperado
 
-1. A query busca todas as roles do usuario sem erro
-2. Se `'master'` estiver entre elas, `isMaster = true`
-3. O menu "Usuarios" aparece normalmente no sidebar
-4. O erro "Error fetching role: Object" desaparece do console
+- O Switch de ativar/desativar usuario funciona sem erro
+- O status muda de `pending` para `active` (ou `active` para `inactive`) corretamente
+- O erro 404 e o erro de "relation user_roles does not exist" desaparecem
 
