@@ -45,12 +45,23 @@ export function useUpdateUserStatus() {
 
   return useMutation({
     mutationFn: async ({ userId, status }: { userId: string; status: 'active' | 'pending' | 'inactive' }) => {
-      const { error } = await supabase
-        .from('waba_profiles')
-        .update({ status })
-        .eq('id', userId);
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-      if (error) throw error;
+      const response = await fetch(`${supabaseUrl}/functions/v1/admin-update-user-status`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseKey}`,
+          'apikey': supabaseKey,
+        },
+        body: JSON.stringify({ userId, status }),
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Erro ao atualizar status');
+      }
 
       return { userId, status };
     },
