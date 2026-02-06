@@ -45,18 +45,14 @@ export function useUpdateUserStatus() {
 
   return useMutation({
     mutationFn: async ({ userId, status }: { userId: string; status: 'active' | 'pending' | 'inactive' }) => {
-      const { data, error } = await supabase
-        .rpc('admin_set_user_status', {
-          target_user_id: userId,
-          new_status: status
-        });
+      const { error } = await supabase
+        .from('waba_profiles')
+        .update({ status })
+        .eq('id', userId);
 
       if (error) throw error;
 
-      const updated = data?.[0];
-      if (!updated) throw new Error('Nenhum usuário foi atualizado');
-
-      return { userId, status: updated.status as 'active' | 'pending' | 'inactive' };
+      return { userId, status };
     },
     onMutate: async ({ userId, status }) => {
       await queryClient.cancelQueries({ queryKey: ['users'] });
