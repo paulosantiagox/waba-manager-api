@@ -1,66 +1,62 @@
 
 
-# Correcao: Status de usuario nao persiste + Novos usuarios devem ser ativos
+# Correção: Status de usuario nao persiste (verificacao + retry)
 
-## Problema 1: Status nao persiste ao ativar usuario
+## Diagnóstico
 
-**Causa raiz:** O codigo usa a **anon key** do banco externo para fazer o update na tabela `waba_profiles`. Provavelmente existe uma politica de seguranca (RLS) no banco externo que bloqueia atualizacoes com a anon key. O update "funciona" sem erro, mas nao altera nenhuma linha. A interface mostra verde por causa do cache otimista, mas quando recarrega, busca do banco e volta ao valor original (vermelho/pendente).
+A edge function `admin-update-user-status` retorna `success: true` mas o status **nao muda** no banco. O Supabase nao retorna erro quando um `UPDATE` afeta 0 linhas. Dois cenarios:
 
-**Solucao:** Criar uma funcao backend `admin-update-user-status` que usa a **service role key** (`PERSONAL_SUPABASE_SERVICE_KEY`) para fazer o update, igual ao padrao ja usado na funcao `auto-update-status`.
+1. **Signup:** O trigger do banco externo cria o perfil com `status='pending'` de forma assincrona. A edge function roda ANTES do perfil existir, entao o UPDATE nao encontra nenhuma linha.
 
-## Problema 2: Novos usuarios ficam com status "pending"
+2. **Toggle admin:** O UPDATE pode estar sendo silenciosamente ignorado (0 rows) ou revertido por um trigger.
 
-**Causa raiz:** O banco externo tem um trigger que define `status = 'pending'` para novos cadastros. Como nao temos acesso direto ao trigger do banco externo, a solucao e atualizar o status para `'active'` logo apos o cadastro, usando a mesma funcao backend.
+## Solucao
 
-Alem disso, o `AuthContext.tsx` bloqueia o login de usuarios com status `'pending'`, entao mesmo que removessemos o trigger, o usuario nao conseguiria entrar. Vamos remover esse bloqueio.
+### 1. Atualizar edge function com verificacao e retry
 
-## Plano de implementacao
+**Arquivo:** `supabase/functions/admin-update-user-status/index.ts`
 
-### 1. Criar funcao backend `admin-update-user-status`
-
-**Novo arquivo:** `supabase/functions/admin-update-user-status/index.ts`
-
-Funcao que recebe `userId` e `status` no body e usa a service role key para atualizar a tabela `waba_profiles` no banco externo:
+Adicionar logica de:
+- **Verificacao:** Apos o UPDATE, fazer um SELECT para confirmar que o status realmente mudou
+- **Retry com delay:** Se o perfil nao existir ainda (caso do signup), esperar 2 segundos e tentar novamente, ate 3 tentativas
+- **Resposta honesta:** Retornar erro se o status nao foi efetivamente alterado
 
 ```text
-POST /admin-update-user-status
-Body: { "userId": "xxx", "status": "active" }
-
 Logica:
-1. Conecta ao Supabase externo com PERSONAL_SUPABASE_SERVICE_KEY
-2. Faz UPDATE em waba_profiles SET status = $status WHERE id = $userId
-3. Retorna sucesso/erro
+1. Tenta UPDATE na waba_profiles
+2. Faz SELECT para verificar o status atual
+3. Se perfil nao existe: espera 2s e tenta novamente (ate 3x)
+4. Se perfil existe mas status nao mudou: tenta UPDATE novamente
+5. Retorna sucesso SOMENTE se o SELECT confirmar o status correto
 ```
 
-### 2. Atualizar `src/hooks/useUsers.ts`
+### 2. Atualizar signup no AuthContext
 
-Modificar `useUpdateUserStatus` para chamar a funcao backend em vez de fazer update direto:
+**Arquivo:** `src/contexts/AuthContext.tsx`
 
-```text
-Antes:  supabase.from('waba_profiles').update({ status }).eq('id', userId)
-Depois: fetch('/functions/v1/admin-update-user-status', { body: { userId, status } })
-```
+- Adicionar um delay de 3 segundos antes de chamar a edge function (dar tempo ao trigger de criar o perfil)
+- Verificar a resposta da edge function e logar erros
+- Adicionar retry se a primeira tentativa falhar
 
-### 3. Atualizar `src/contexts/AuthContext.tsx`
+### 3. Melhorar feedback no toggle de status
 
-- Remover o bloqueio de usuarios com status `'pending'` (linhas 59-66)
-- Usuarios pendentes poderao fazer login normalmente
+**Arquivo:** `src/hooks/useUsers.ts`
 
-### 4. Atualizar signup para definir status como 'active'
+- No `onSuccess`, verificar a resposta real e invalidar o cache para forcar reload do banco
+- No `onError`, mostrar mensagem mais descritiva
 
-No `AuthContext.tsx`, apos o signup bem-sucedido, chamar a funcao backend para definir o status do novo usuario como `'active'`, sobrescrevendo o trigger do banco.
-
-## Arquivos a modificar/criar
+## Arquivos a modificar
 
 | Arquivo | Acao |
 |---------|------|
-| `supabase/functions/admin-update-user-status/index.ts` | **Criar** - Funcao backend para atualizar status com service role key |
-| `src/hooks/useUsers.ts` | **Modificar** - `useUpdateUserStatus` chama a funcao backend |
-| `src/contexts/AuthContext.tsx` | **Modificar** - Remover bloqueio de pending, atualizar status no signup |
+| `supabase/functions/admin-update-user-status/index.ts` | Adicionar verificacao SELECT + retry com delay |
+| `src/contexts/AuthContext.tsx` | Adicionar delay antes da ativacao no signup |
+| `src/hooks/useUsers.ts` | Forcar invalidacao do cache apos sucesso |
 
 ## Resultado esperado
 
-1. Novos usuarios ficam ativos automaticamente ao se cadastrar
-2. O switch de ativar/desativar na pagina de usuarios persiste corretamente
-3. Nao aparece mais a mensagem "aguardando aprovacao do administrador"
+1. A edge function so retorna sucesso quando o status REALMENTE mudou no banco
+2. Novos usuarios ficam ativos apos o signup (com retry para esperar o trigger)
+3. O toggle de status do admin persiste apos recarregar a pagina
+4. Se algo falhar, o usuario ve uma mensagem de erro real (nao mais falso positivo)
 
