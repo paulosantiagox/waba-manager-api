@@ -1,72 +1,66 @@
 
 
-# Correção: Erro ao aprovar/alterar status de usuário
+# Correcao: Status de usuario nao persiste + Novos usuarios devem ser ativos
 
-## Causa Raiz
+## Problema 1: Status nao persiste ao ativar usuario
 
-A funcao `useUpdateUserStatus` em `src/hooks/useUsers.ts` (linha 48-52) chama uma funcao RPC que **nao existe** no banco:
+**Causa raiz:** O codigo usa a **anon key** do banco externo para fazer o update na tabela `waba_profiles`. Provavelmente existe uma politica de seguranca (RLS) no banco externo que bloqueia atualizacoes com a anon key. O update "funciona" sem erro, mas nao altera nenhuma linha. A interface mostra verde por causa do cache otimista, mas quando recarrega, busca do banco e volta ao valor original (vermelho/pendente).
 
-```typescript
-const { data, error } = await supabase
-  .rpc('admin_set_user_status', {
-    target_user_id: userId,
-    new_status: status
-  });
+**Solucao:** Criar uma funcao backend `admin-update-user-status` que usa a **service role key** (`PERSONAL_SUPABASE_SERVICE_KEY`) para fazer o update, igual ao padrao ja usado na funcao `auto-update-status`.
+
+## Problema 2: Novos usuarios ficam com status "pending"
+
+**Causa raiz:** O banco externo tem um trigger que define `status = 'pending'` para novos cadastros. Como nao temos acesso direto ao trigger do banco externo, a solucao e atualizar o status para `'active'` logo apos o cadastro, usando a mesma funcao backend.
+
+Alem disso, o `AuthContext.tsx` bloqueia o login de usuarios com status `'pending'`, entao mesmo que removessemos o trigger, o usuario nao conseguiria entrar. Vamos remover esse bloqueio.
+
+## Plano de implementacao
+
+### 1. Criar funcao backend `admin-update-user-status`
+
+**Novo arquivo:** `supabase/functions/admin-update-user-status/index.ts`
+
+Funcao que recebe `userId` e `status` no body e usa a service role key para atualizar a tabela `waba_profiles` no banco externo:
+
+```text
+POST /admin-update-user-status
+Body: { "userId": "xxx", "status": "active" }
+
+Logica:
+1. Conecta ao Supabase externo com PERSONAL_SUPABASE_SERVICE_KEY
+2. Faz UPDATE em waba_profiles SET status = $status WHERE id = $userId
+3. Retorna sucesso/erro
 ```
 
-O erro no console confirma:
-- `POST .../rpc/admin_set_user_status 404 (Not Found)`
-- `relation "user_roles" does not exist` (a funcao RPC referencia `user_roles` em vez de `waba_user_roles`)
+### 2. Atualizar `src/hooks/useUsers.ts`
 
-## Solucao
+Modificar `useUpdateUserStatus` para chamar a funcao backend em vez de fazer update direto:
 
-Substituir a chamada RPC por um **update direto** na tabela `waba_profiles`, que ja existe e funciona (o mesmo padrao usado em outras funcoes do arquivo).
-
-### Arquivo: `src/hooks/useUsers.ts`
-
-**Antes (linhas 47-59):**
-```typescript
-mutationFn: async ({ userId, status }) => {
-  const { data, error } = await supabase
-    .rpc('admin_set_user_status', {
-      target_user_id: userId,
-      new_status: status
-    });
-
-  if (error) throw error;
-
-  const updated = data?.[0];
-  if (!updated) throw new Error('Nenhum usuário foi atualizado');
-
-  return { userId, status: updated.status };
-},
+```text
+Antes:  supabase.from('waba_profiles').update({ status }).eq('id', userId)
+Depois: fetch('/functions/v1/admin-update-user-status', { body: { userId, status } })
 ```
 
-**Depois:**
-```typescript
-mutationFn: async ({ userId, status }) => {
-  const { error } = await supabase
-    .from('waba_profiles')
-    .update({ status })
-    .eq('id', userId);
+### 3. Atualizar `src/contexts/AuthContext.tsx`
 
-  if (error) throw error;
+- Remover o bloqueio de usuarios com status `'pending'` (linhas 59-66)
+- Usuarios pendentes poderao fazer login normalmente
 
-  return { userId, status };
-},
-```
+### 4. Atualizar signup para definir status como 'active'
 
-Mudanca simples: em vez de chamar uma funcao RPC inexistente, faz um UPDATE direto na coluna `status` da tabela `waba_profiles`. O resto da logica (optimistic update, cache sync, toast) permanece igual.
+No `AuthContext.tsx`, apos o signup bem-sucedido, chamar a funcao backend para definir o status do novo usuario como `'active'`, sobrescrevendo o trigger do banco.
 
-## Arquivos a Modificar
+## Arquivos a modificar/criar
 
 | Arquivo | Acao |
 |---------|------|
-| `src/hooks/useUsers.ts` | Substituir `supabase.rpc('admin_set_user_status')` por `supabase.from('waba_profiles').update()` |
+| `supabase/functions/admin-update-user-status/index.ts` | **Criar** - Funcao backend para atualizar status com service role key |
+| `src/hooks/useUsers.ts` | **Modificar** - `useUpdateUserStatus` chama a funcao backend |
+| `src/contexts/AuthContext.tsx` | **Modificar** - Remover bloqueio de pending, atualizar status no signup |
 
-## Resultado Esperado
+## Resultado esperado
 
-- O Switch de ativar/desativar usuario funciona sem erro
-- O status muda de `pending` para `active` (ou `active` para `inactive`) corretamente
-- O erro 404 e o erro de "relation user_roles does not exist" desaparecem
+1. Novos usuarios ficam ativos automaticamente ao se cadastrar
+2. O switch de ativar/desativar na pagina de usuarios persiste corretamente
+3. Nao aparece mais a mensagem "aguardando aprovacao do administrador"
 
