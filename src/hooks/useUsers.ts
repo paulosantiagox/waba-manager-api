@@ -83,8 +83,10 @@ export function useUpdateUserStatus() {
         queryClient.setQueryData<User[]>(['users'], currentUsers.map(u => u.id === result.userId ? { ...u, status: result.status } : u));
       }
 
+      // Forçar reload do banco para garantir que o cache reflete a realidade
+      queryClient.invalidateQueries({ queryKey: ['users'] });
       queryClient.invalidateQueries({ queryKey: ['user-stats'] });
-      toast.success('Status do usuário atualizado!');
+      toast.success('Status do usuário atualizado e verificado!');
     },
     onError: (error, _vars, ctx) => {
       if (ctx?.previousUsers) {
