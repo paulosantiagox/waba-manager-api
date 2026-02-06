@@ -186,10 +186,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: error.message };
       }
 
-      // Atualizar status para 'active' via edge function (sobrescreve trigger do banco)
-      // Delay de 3s para dar tempo ao trigger do banco criar o perfil
+      // Ativar usuario e fazer login automatico
       if (signUpData?.user?.id) {
         try {
+          // Delay para dar tempo ao trigger do banco criar o perfil
           await new Promise(resolve => setTimeout(resolve, 3000));
           
           const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -213,6 +213,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         } catch (e) {
           console.error('[Auth] Erro ao ativar usuário após signup:', e);
+        }
+
+        // Login automático após signup
+        try {
+          const { error: loginError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+          if (loginError) {
+            console.error('[Auth] Erro no login automático:', loginError);
+          } else {
+            console.log('[Auth] Login automático realizado com sucesso');
+          }
+        } catch (e) {
+          console.error('[Auth] Erro no login automático:', e);
         }
       }
 

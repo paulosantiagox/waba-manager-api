@@ -80,8 +80,8 @@ const Auth = () => {
     if (error) {
       toast.error(error);
     } else {
-      toast.success('Conta criada com sucesso! Verifique seu email para confirmar.');
-      setActiveTab('login');
+      toast.success('Conta criada com sucesso!');
+      navigate('/dashboard');
     }
   };
 
