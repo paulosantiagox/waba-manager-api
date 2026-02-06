@@ -1,64 +1,73 @@
 
 
-# Correcoes: Status vermelho em novos usuarios + Remover aviso de email
+# Ajuste do Menu Mobile: Overlay + Fechar ao Clicar Fora
 
-## Problema 1: Novos usuarios aparecem vermelhos na lista do admin
+## Problema Atual
 
-O signup chama a edge function `admin-update-user-status` para mudar o status de `pending` para `active`. Porem, mesmo com retry, ha uma race condition: o trigger do banco externo pode nao ter criado o perfil ainda, ou pode estar revertendo o status apos o update.
+No mobile, o sidebar empurra o conteudo principal com `margin-left` (16px ou 256px), causando distorcao e compressao dos elementos da pagina. Alem disso, nao ha como fechar o menu clicando fora dele.
 
-**Solucao:** Apos o signup bem-sucedido, fazer login automatico do usuario. Alem disso, ao listar usuarios na pagina admin, se a edge function nao conseguiu alterar o status no signup, o admin pode usar o toggle (que ja funciona via edge function com service key).
+## Solucao
 
-O problema principal e que a edge function esta sendo chamada com a URL do Lovable Cloud (`VITE_SUPABASE_URL`) em vez da URL do Supabase externo. Vamos verificar e corrigir se necessario.
+Transformar o comportamento do sidebar no mobile para funcionar como **overlay** (por cima do conteudo), com um fundo escuro semi-transparente que fecha o menu ao ser clicado.
 
-**Acao concreta no `src/contexts/AuthContext.tsx`:**
-- Apos o signup + ativacao, fazer login automatico do usuario (chamar `signInWithPassword`)
-- Isso garante que o usuario entra direto, sem precisar ir para a tela de login
-- Mudar a mensagem de sucesso para "Conta criada com sucesso!" (sem mencionar email)
+## Mudancas
 
-## Problema 2: Remover notificacao "Verifique seu email"
+### 1. `src/components/layout/DashboardLayout.tsx`
 
-**Arquivo:** `src/pages/Auth.tsx` (linha 83)
+- Importar o hook `useIsMobile` para detectar tela pequena
+- No mobile, o sidebar comeca **recolhido** por padrao
+- O `main` no mobile **nao tera margin-left** (conteudo ocupa 100% da tela)
+- Adicionar um **overlay escuro** (`div` com `bg-black/50`) que aparece quando o sidebar esta aberto no mobile
+- Clicar no overlay chama `setSidebarCollapsed(true)` para fechar o menu
+- Reduzir o padding do conteudo no mobile (`p-4` em vez de `p-8`)
 
-Mudar de:
+### 2. `src/components/layout/Sidebar.tsx`
+
+- Importar o hook `useIsMobile`
+- No mobile, quando o sidebar esta **recolhido**, ele fica completamente fora da tela (`-translate-x-full` ou `left: -100%`) em vez de mostrar a versao mini com icones
+- No mobile, quando o sidebar esta **aberto**, ele aparece por cima do conteudo na largura padrao (`w-64`)
+- Adicionar um botao hamburger visivel no mobile quando o menu esta fechado (ou manter o botao circular atual)
+- Ao clicar em um link de navegacao no mobile, fechar o menu automaticamente
+
+## Comportamento Esperado
+
+```text
+Desktop (>= 768px):
+  - Sidebar funciona como hoje (empurra conteudo, toggle entre w-16 e w-64)
+
+Mobile (< 768px):
+  - Menu fechado: sidebar invisivel, conteudo ocupa 100%
+  - Menu aberto: sidebar aparece POR CIMA do conteudo com overlay escuro atras
+  - Clicar no overlay: fecha o menu
+  - Clicar em um link: navega E fecha o menu
 ```
-toast.success('Conta criada com sucesso! Verifique seu email para confirmar.');
-```
-Para:
-```
-toast.success('Conta criada com sucesso!');
-```
 
-E em vez de mudar para a aba de login (`setActiveTab('login')`), redirecionar para o dashboard diretamente (ja que o signup + login automatico tera sido feito no AuthContext).
-
-## Problema 3: Edge function `promote-master`
-
-Essa funcao **nunca existiu** no codigo deste projeto. Se voce precisa dela, posso cria-la em uma proxima tarefa. Atualmente, a promocao de usuario para admin e feita diretamente via update na tabela `waba_user_roles` (funcao `useUpdateUserRole` em `useUsers.ts`).
-
-## Arquivos a modificar
+## Arquivos a Modificar
 
 | Arquivo | Acao |
 |---------|------|
-| `src/pages/Auth.tsx` | Remover mensagem "Verifique seu email", redirecionar apos signup |
-| `src/contexts/AuthContext.tsx` | Apos ativar usuario no signup, fazer login automatico |
+| `src/components/layout/DashboardLayout.tsx` | Adicionar deteccao mobile, overlay, remover margin no mobile |
+| `src/components/layout/Sidebar.tsx` | Esconder completamente no mobile quando recolhido, fechar ao navegar |
 
-## Detalhes tecnicos
+## Detalhes Tecnicos
 
-### Auth.tsx - handleSignup (linha 76-85)
+### DashboardLayout.tsx
 
-Apos o signup sem erro:
-1. Mostrar toast "Conta criada com sucesso!"
-2. Navegar para `/dashboard` (o AuthContext ja tera feito login automatico)
+```text
+- useState para sidebarCollapsed inicia como `true` no mobile (via useIsMobile)
+- main: no mobile usa ml-0 sempre, no desktop mantem ml-16/ml-64
+- Overlay: div fixed inset-0 bg-black/50 z-40 (abaixo do sidebar z-50)
+  - Visivel apenas quando mobile && !collapsed
+  - onClick: setSidebarCollapsed(true)
+- Padding: mobile p-4, desktop p-8
+```
 
-### AuthContext.tsx - signup (linhas 167-223)
+### Sidebar.tsx
 
-Apos a edge function ativar o usuario com sucesso:
-1. Chamar `supabase.auth.signInWithPassword({ email, password })` automaticamente
-2. Isso dispara o `onAuthStateChange` e carrega o perfil do usuario
-3. O usuario e redirecionado automaticamente para o dashboard
+```text
+- No mobile + collapsed: classe -translate-x-full (esconde completamente)
+- No mobile + aberto: w-64 translate-x-0 (aparece normal)
+- Ao clicar em qualquer Link: se isMobile, chamar onToggle() para fechar
+- Botao toggle: no mobile, fica visivel como icone de hamburger no canto
+```
 
-## Resultado esperado
-
-1. Novos usuarios sao criados e entram no sistema automaticamente
-2. Nenhuma mensagem sobre verificar email aparece
-3. O status e atualizado para "active" pela edge function com retry
-4. As edge functions `auto-update-status` e `admin-update-user-status` continuam existindo normalmente
