@@ -41,19 +41,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { user: null, reason: 'not_found' };
       }
 
-      // Fetch role
-      const { data: roleData, error: roleError } = await supabase
+      // Fetch roles (user may have multiple)
+      const { data: rolesData, error: roleError } = await supabase
         .from('waba_user_roles')
         .select('role')
-        .eq('user_id', userId)
-        .maybeSingle();
+        .eq('user_id', userId);
 
       if (roleError) {
-        console.error('Error fetching role:', roleError);
+        console.error('Error fetching roles:', roleError);
       }
 
-      const role = roleData?.role || 'user';
-      setIsMaster(role === 'master');
+      const roles = (rolesData?.map(r => r.role) || []) as string[];
+      const hasMasterRole = roles.includes('master');
+      const primaryRole = hasMasterRole ? 'master' : (roles[0] || 'user');
+      setIsMaster(hasMasterRole);
 
       // Block pending users
       if (profile.status === 'pending') {
@@ -77,7 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         id: profile.id,
         name: profile.name || '',
         email: profile.email || '',
-        role: role as 'master' | 'user',
+        role: primaryRole as 'master' | 'user',
         photo: profile.photo || undefined,
         status: profile.status || 'active',
         createdAt: profile.created_at,
