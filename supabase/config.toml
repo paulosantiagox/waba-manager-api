@@ -2,3 +2,6 @@ project_id = "uvtjrgfouqmwopekbuxd"
 
 [functions.auto-update-status]
 verify_jwt = false
+
+[functions.admin-update-user-status]
+verify_jwt = false

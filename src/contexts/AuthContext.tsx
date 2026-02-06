@@ -56,15 +56,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const primaryRole = hasMasterRole ? 'master' : (roles[0] || 'user');
       setIsMaster(hasMasterRole);
 
-      // Block pending users
-      if (profile.status === 'pending') {
-        setUser(null);
-        setSession(null);
-        setIsMaster(false);
-        await supabase.auth.signOut();
-        return { user: null, reason: 'pending' };
-      }
-
       // Block inactive users
       if (profile.status === 'inactive') {
         setUser(null);
@@ -160,9 +151,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (signedInUserId) {
         const { user: appUser, reason } = await fetchUserProfile(signedInUserId);
         if (!appUser) {
-          if (reason === 'pending') {
-            return { error: 'Sua conta está aguardando aprovação do administrador.' };
-          } else if (reason === 'inactive') {
+          if (reason === 'inactive') {
             return { error: 'Sua conta está desativada. Fale com o administrador.' };
           }
           return { error: 'Perfil não encontrado. Tente novamente ou entre em contato com o administrador.' };
@@ -179,7 +168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const redirectUrl = `${window.location.origin}/`;
       
-      const { error } = await supabase.auth.signUp({
+      const { data: signUpData, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -195,6 +184,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return { error: 'Este email já está cadastrado' };
         }
         return { error: error.message };
+      }
+
+      // Atualizar status para 'active' via edge function (sobrescreve trigger do banco)
+      if (signUpData?.user?.id) {
+        try {
+          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+          const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+          
+          await fetch(`${supabaseUrl}/functions/v1/admin-update-user-status`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseKey}`,
+              'apikey': supabaseKey,
+            },
+            body: JSON.stringify({ userId: signUpData.user.id, status: 'active' }),
+          });
+        } catch (e) {
+          console.error('[Auth] Erro ao ativar usuário após signup:', e);
+        }
       }
 
       return { error: null };
