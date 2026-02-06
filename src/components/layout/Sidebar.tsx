@@ -44,7 +44,7 @@ const Sidebar = ({ collapsed, onToggle, isMobile = false }: SidebarProps) => {
     <TooltipProvider delayDuration={0}>
       <aside 
         className={cn(
-          "fixed left-0 top-0 h-screen bg-sidebar flex flex-col z-50 transition-all duration-300",
+          "fixed left-0 top-0 h-[100dvh] bg-sidebar flex flex-col z-50 transition-all duration-300",
           isMobile
             ? cn("w-64", collapsed ? "-translate-x-full" : "translate-x-0")
             : cn(collapsed ? "w-16" : "w-64")
