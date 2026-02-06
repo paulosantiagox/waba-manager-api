@@ -18,9 +18,10 @@ import { BrasiliaClockWidget, ManausClockWidget } from './BrasiliaClockWidget';
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  isMobile?: boolean;
 }
 
-const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
+const Sidebar = ({ collapsed, onToggle, isMobile = false }: SidebarProps) => {
   const { user, logout, isMaster } = useAuth();
   const location = useLocation();
 
@@ -33,21 +34,29 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
 
   const isActive = (href: string) => location.pathname === href;
 
+  const handleNavClick = () => {
+    if (isMobile) {
+      onToggle();
+    }
+  };
+
   return (
     <TooltipProvider delayDuration={0}>
       <aside 
         className={cn(
           "fixed left-0 top-0 h-screen bg-sidebar flex flex-col z-50 transition-all duration-300",
-          collapsed ? "w-16" : "w-64"
+          isMobile
+            ? cn("w-64", collapsed ? "-translate-x-full" : "translate-x-0")
+            : cn(collapsed ? "w-16" : "w-64")
         )}
       >
         {/* Logo */}
         <div className="p-4 border-b border-sidebar-border">
-          <Link to="/dashboard" className="flex items-center gap-3">
+          <Link to="/dashboard" className="flex items-center gap-3" onClick={handleNavClick}>
             <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center flex-shrink-0">
               <MessageSquare className="w-5 h-5 text-primary-foreground" />
             </div>
-            {!collapsed && (
+            {(!collapsed || isMobile) && (
               <div className="overflow-hidden">
                 <h1 className="font-bold text-sidebar-foreground">WABA Manager</h1>
                 <p className="text-xs text-sidebar-foreground/60">API Manager</p>
@@ -56,34 +65,38 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
           </Link>
         </div>
 
-        {/* Toggle Button */}
-        <button
-          onClick={onToggle}
-          className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-sidebar-primary text-sidebar-primary-foreground flex items-center justify-center shadow-md hover:bg-primary transition-colors"
-        >
-          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-        </button>
+        {/* Toggle Button - apenas no desktop */}
+        {!isMobile && (
+          <button
+            onClick={onToggle}
+            className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-sidebar-primary text-sidebar-primary-foreground flex items-center justify-center shadow-md hover:bg-primary transition-colors"
+          >
+            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+          </button>
+        )}
 
         {/* Navigation */}
         <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
+            const showLabel = !collapsed || isMobile;
             
             const linkContent = (
               <Link
                 key={item.href}
                 to={item.href}
+                onClick={handleNavClick}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group",
                   active
                     ? "bg-sidebar-primary text-sidebar-primary-foreground"
                     : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
-                  collapsed && "justify-center px-2"
+                  !showLabel && "justify-center px-2"
                 )}
               >
                 <Icon className="w-5 h-5 flex-shrink-0" />
-                {!collapsed && (
+                {showLabel && (
                   <>
                     <span className="font-medium text-sm">{item.label}</span>
                     {active && <ChevronRight className="w-4 h-4 ml-auto" />}
@@ -92,7 +105,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
               </Link>
             );
 
-            if (collapsed) {
+            if (!showLabel) {
               return (
                 <Tooltip key={item.href}>
                   <TooltipTrigger asChild>
@@ -111,7 +124,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
 
         {/* User profile & logout */}
         <div className="p-2 border-t border-sidebar-border">
-          {!collapsed ? (
+          {(!collapsed || isMobile) ? (
             <>
               {/* Relógios */}
               <BrasiliaClockWidget collapsed={false} />
@@ -140,6 +153,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
               <div className="flex gap-2">
                 <Link
                   to="/settings"
+                  onClick={handleNavClick}
                   className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors text-sm"
                 >
                   <Settings className="w-4 h-4" />
