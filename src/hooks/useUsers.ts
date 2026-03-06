@@ -18,7 +18,7 @@ export function useUsers() {
       // Fetch roles
       const { data: roles, error: rolesError } = await supabase
         .from('waba_user_roles')
-        .select('*');
+        .select('user_id, role');
 
       if (rolesError) throw rolesError;
 
