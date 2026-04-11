@@ -41,7 +41,8 @@ export const mapMetaQuality = (quality: string): 'HIGH' | 'MEDIUM' | 'LOW' => {
 };
 
 // Map messaging limit tier to readable format
-export const mapMessagingLimit = (tier: string): string => {
+export const mapMessagingLimit = (tier: string | undefined | null): string => {
+  if (!tier) return 'Não definido';
   const tierMap: Record<string, string> = {
     'TIER_1K': '1000',
     'TIER_10K': '10000',
