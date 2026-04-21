@@ -283,7 +283,7 @@ const DashboardV2 = () => {
           <div className="p-3 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Activity className="w-4 h-4 text-primary" />
-              <h3 className="text-sm font-bold">Histórico Recente</h3>
+              <h3 className="text-sm font-bold">Mudanças de Status Recentes</h3>
             </div>
             <Button 
               variant="ghost" 
@@ -306,13 +306,14 @@ const DashboardV2 = () => {
                     "absolute left-[-4.5px] top-1.5 w-2 h-2 rounded-full border border-white dark:border-slate-900",
                     change.direction === 'up' ? "bg-success" : "bg-destructive"
                   )} />
-                  <div className="space-y-0">
+                  <div className="space-y-0.5">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <span className="text-[10px] font-bold text-primary">
                           {format(new Date(change.changedAt), "dd/MM '•' HH:mm", { locale: ptBR })}
                         </span>
                         <p className="text-[11px] font-bold leading-tight group-hover:text-primary transition-colors pr-8">{change.numberName}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{change.projectName}</p>
                       </div>
                       <div className="shrink-0 -mt-1">
                         {change.direction === 'up' 
