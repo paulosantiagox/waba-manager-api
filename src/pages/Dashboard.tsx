@@ -198,7 +198,7 @@ const UserDashboard = () => {
             <CardContent>
               {recentChanges.length > 0 ? (
                 <div className="space-y-1">
-                  {recentChanges.slice(0, 5).map((change) => (
+                  {recentChanges.map((change) => (
                     <Link
                       key={change.id}
                       to={`/projects/${change.projectId}`}
