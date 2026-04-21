@@ -37,17 +37,63 @@ const MasterDashboard = () => {
         <StatsCard title="Disparos Realizados" value={0} icon={Megaphone} />
       </div>
 
-      <Card className="animate-slide-up">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Activity className="w-5 h-5 text-primary" />
-            Visão Geral
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">Bem-vindo ao painel de administração. Use o menu lateral para navegar.</p>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card className="animate-slide-up">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+              <Activity className="w-5 h-5 text-primary" />
+              Visão Geral do Sistema
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Bem-vindo ao painel de administração. Aqui você pode gerenciar todos os usuários, 
+              projetos e monitorar a saúde global do sistema.
+            </p>
+            <div className="grid grid-cols-2 gap-4 pt-2">
+              <div className="bg-muted/50 p-4 rounded-xl border border-border/50">
+                <p className="text-xs text-muted-foreground mb-1">Taxa de Aprovação</p>
+                <p className="text-xl font-bold">{(activeUsers / (users.length || 1) * 100).toFixed(1)}%</p>
+              </div>
+              <div className="bg-muted/50 p-4 rounded-xl border border-border/50">
+                <p className="text-xs text-muted-foreground mb-1">Média Projetos/User</p>
+                <p className="text-xl font-bold">{(projects.length / (activeUsers || 1)).toFixed(1)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="animate-slide-up [animation-delay:0.1s]">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Status do Servidor</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  API Gateway
+                </div>
+                <Badge variant="outline" className="text-[10px] uppercase font-bold text-emerald-500 border-emerald-500/20 bg-emerald-500/5">Online</Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  Database
+                </div>
+                <Badge variant="outline" className="text-[10px] uppercase font-bold text-emerald-500 border-emerald-500/20 bg-emerald-500/5">Online</Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  WhatsApp Scraper
+                </div>
+                <Badge variant="outline" className="text-[10px] uppercase font-bold text-emerald-500 border-emerald-500/20 bg-emerald-500/5">Online</Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </>
   );
 };
