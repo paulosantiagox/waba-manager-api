@@ -283,7 +283,7 @@ const DashboardV2 = () => {
           <div className="p-3 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Activity className="w-4 h-4 text-primary" />
-              <h3 className="text-sm font-bold">Mudanças de Status Recentes</h3>
+              <h3 className="text-sm font-bold">Mudanças de Status</h3>
             </div>
             <Button 
               variant="ghost" 
@@ -294,9 +294,9 @@ const DashboardV2 = () => {
               <RefreshCw className="w-3.5 h-3.5" />
             </Button>
           </div>
-          <div className="flex-1 overflow-y-auto p-3 space-y-2 max-h-[480px] lg:max-h-none">
-            {recentChanges.length > 0 ? (
-              recentChanges.map((change) => (
+          <div className="flex-1 overflow-y-auto p-3 space-y-2 max-h-[600px]">
+            {recentChanges.slice(0, 10).length > 0 ? (
+              recentChanges.slice(0, 10).map((change) => (
                 <div 
                   key={change.id} 
                   className="relative pl-6 pb-4 border-l border-border last:pb-0 group cursor-pointer"
