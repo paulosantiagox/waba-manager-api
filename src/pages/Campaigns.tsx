@@ -24,7 +24,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { SortableControls } from '@/components/ui/sortable-controls';
 import { toast } from 'sonner';
-import { Plus, Megaphone, Send, Calendar, ChevronRight, ChevronDown, Edit2, Trash2, Tag, Filter, Copy, Zap, Check, Loader2, Pin, Settings } from 'lucide-react';
+import { Plus, Megaphone, Send, Calendar, ChevronRight, ChevronDown, Edit2, Trash2, Tag, Filter, Copy, Zap, Check, Loader2, Pin, Settings, FolderKanban } from 'lucide-react';
 import BroadcastTemplateConfigModal, { getBroadcastTemplate } from '@/components/modals/BroadcastTemplateConfigModal';
 import { format, parse } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
