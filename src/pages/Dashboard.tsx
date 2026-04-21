@@ -218,14 +218,14 @@ const UserDashboard = () => {
                       className="flex items-center justify-between py-3 px-3 rounded-xl hover:bg-muted/50 transition-all group"
                     >
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                        <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 ${
                           change.direction === 'up' 
                             ? 'bg-success/10 text-success' 
                             : 'bg-destructive/10 text-destructive'
                         }`}>
                           {change.direction === 'up' 
-                            ? <TrendingUp className="w-5 h-5" /> 
-                            : <TrendingDown className="w-5 h-5" />
+                            ? <TrendingUp className="w-8 h-8" /> 
+                            : <TrendingDown className="w-8 h-8" />
                           }
                         </div>
                         <div>
@@ -350,7 +350,13 @@ const Dashboard = () => {
     <DashboardLayout>
       <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Olá, {user?.name?.split(' ')[0]} 👋</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-foreground">Olá, {user?.name?.split(' ')[0]} 👋</h1>
+            <span className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+            </span>
+          </div>
           <p className="text-muted-foreground mt-1">
             {isMaster ? 'Visão geral do sistema e gestão de usuários' : 'Monitore seus projetos e números WhatsApp'}
           </p>
