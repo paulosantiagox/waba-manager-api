@@ -188,8 +188,8 @@ const UserDashboard = () => {
                       <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                           change.direction === 'up' 
-                            ? 'bg-emerald-500/10 text-emerald-500' 
-                            : 'bg-red-500/10 text-red-500'
+                            ? 'bg-success/10 text-success' 
+                            : 'bg-destructive/10 text-destructive'
                         }`}>
                           {change.direction === 'up' 
                             ? <TrendingUp className="w-5 h-5" /> 
