@@ -32,13 +32,22 @@ const MasterDashboard = () => {
   const activeUsers = users.filter(u => u.status === 'active' && u.role !== 'master').length;
   const pendingUsers = users.filter(u => u.status === 'pending').length;
 
+  const statusCounts = {
+    high: numbers.filter(n => n.qualityRating === 'HIGH').length,
+    medium: numbers.filter(n => n.qualityRating === 'MEDIUM').length,
+    low: numbers.filter(n => n.qualityRating === 'LOW').length,
+  };
+
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatsCard title="Usuários Ativos" value={activeUsers} subtitle={`${pendingUsers} aguardando aprovação`} icon={Users} variant="primary" />
-        <StatsCard title="Total de Projetos" value={projects.length} icon={FolderKanban} />
-        <StatsCard title="Números Monitorados" value={numbers.length} icon={Phone} />
-        <StatsCard title="Disparos Realizados" value={0} icon={Megaphone} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4 mb-8">
+        <StatsCard title="Usuários Ativos" value={activeUsers} subtitle={`${pendingUsers} pendentes`} icon={Users} variant="primary" />
+        <StatsCard title="Projetos" value={projects.length} icon={FolderKanban} />
+        <StatsCard title="Números" value={numbers.length} icon={Phone} />
+        <StatsCard title="Disparos" value={0} icon={Megaphone} />
+        <StatsCard title="Alta" value={statusCounts.high} icon={TrendingUp} variant="success" />
+        <StatsCard title="Média" value={statusCounts.medium} icon={Activity} variant="warning" />
+        <StatsCard title="Baixa" value={statusCounts.low} icon={TrendingDown} variant="destructive" />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -191,11 +200,13 @@ const UserDashboard = () => {
 
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
         <StatsCard title="Meus Projetos" value={projects.length} icon={FolderKanban} variant="primary" />
-        <StatsCard title="Números Monitorados" value={userNumbers.length} icon={Phone} />
-        <StatsCard title="Campanhas Ativas" value={0} icon={Megaphone} />
-        <StatsCard title="Status dos Números" value={`${statusCounts.high}/${statusCounts.medium}/${statusCounts.low}`} subtitle="Alta / Média / Baixa" icon={Activity} />
+        <StatsCard title="Números Ativos" value={userNumbers.length} icon={Phone} />
+        <StatsCard title="Disparos" value={0} icon={Megaphone} />
+        <StatsCard title="Alta Qualidade" value={statusCounts.high} icon={TrendingUp} variant="success" />
+        <StatsCard title="Média Qualidade" value={statusCounts.medium} icon={Activity} variant="warning" />
+        <StatsCard title="Baixa Qualidade" value={statusCounts.low} icon={TrendingDown} variant="destructive" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">

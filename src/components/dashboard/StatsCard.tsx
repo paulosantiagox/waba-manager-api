@@ -10,7 +10,7 @@ interface StatsCardProps {
     value: number;
     positive: boolean;
   };
-  variant?: 'default' | 'primary' | 'success' | 'warning';
+  variant?: 'default' | 'primary' | 'success' | 'warning' | 'destructive';
 }
 
 const StatsCard = ({ title, value, subtitle, icon: Icon, trend, variant = 'default' }: StatsCardProps) => {
@@ -19,6 +19,7 @@ const StatsCard = ({ title, value, subtitle, icon: Icon, trend, variant = 'defau
     primary: 'gradient-primary text-primary-foreground',
     success: 'gradient-success text-success-foreground',
     warning: 'gradient-warning text-warning-foreground',
+    destructive: 'bg-destructive text-destructive-foreground',
   };
 
   const isColored = variant !== 'default';
