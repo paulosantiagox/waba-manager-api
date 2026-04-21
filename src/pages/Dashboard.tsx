@@ -252,7 +252,7 @@ const UserDashboard = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <Button 
-              className="w-full bg-indigo-500 hover:bg-indigo-600 shadow-lg shadow-indigo-200 text-white font-bold transition-all gap-2"
+              className="w-full bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 text-primary-foreground font-bold transition-all gap-2"
               onClick={handleUpdateAll}
               disabled={isUpdating}
             >
