@@ -123,7 +123,7 @@ const UserDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data: projects = [], isLoading } = useProjects();
-  const { data: allNumbers = [] } = useAllWhatsAppNumbers();
+  const { data: allNumbers = [], refetch: refetchNumbers } = useAllWhatsAppNumbers();
   const createProject = useCreateProject();
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
