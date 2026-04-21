@@ -44,7 +44,9 @@ const DashboardV2 = () => {
   const handleUpdateAll = async () => {
     setIsUpdating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('auto-update-status');
+      const { data, error } = await supabase.functions.invoke('auto-update-status', {
+        body: { manual: true }
+      });
       if (error) throw error;
       
       toast.success(`${data.numbersUpdated} números atualizados com sucesso!`);
