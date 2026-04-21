@@ -27,6 +27,7 @@ const Sidebar = ({ collapsed, onToggle, isMobile = false }: SidebarProps) => {
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
+    { icon: LayoutDashboard, label: 'Dashboard V2', href: '/dashboard-v2' },
     { icon: FolderKanban, label: 'Projetos', href: '/projects' },
     { icon: Megaphone, label: 'Campanhas', href: '/campaigns' },
     ...(isMaster ? [{ icon: Users, label: 'Usuários', href: '/users' }] : []),
