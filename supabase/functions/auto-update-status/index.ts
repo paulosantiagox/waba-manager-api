@@ -27,8 +27,8 @@ Deno.serve(async (req) => {
     if (!personalServiceKey) {
       console.error('[AUTO_UPDATE] PERSONAL_SUPABASE_SERVICE_KEY não configurada!')
       return new Response(
-        JSON.stringify({ success: false, error: 'Service key não configurada' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        JSON.stringify({ success: false, error: 'Service key não configurada (PERSONAL_SUPABASE_SERVICE_KEY)' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       )
     }
     
