@@ -172,9 +172,9 @@ const DashboardV2 = () => {
                         
                         <div className="flex items-center justify-between text-[10px] pt-2 border-t border-border/50">
                           <span className="text-muted-foreground">
-                            {number.messagingLimitTier 
-                              ? `Tier ${number.messagingLimitTier.replace('TIER_', '')}` 
-                              : number.lastStatusChange ? getDaysInStatus(number.lastStatusChange) : 'Tier --'
+                            {(!number.messagingLimitTier || number.messagingLimitTier === 'Não definido') 
+                              ? (number.lastStatusChange ? getDaysInStatus(number.lastStatusChange) : 'Tier --')
+                              : `Tier ${number.messagingLimitTier.replace('TIER_', '')}`
                             }
                           </span>
                           <span className="text-muted-foreground">
