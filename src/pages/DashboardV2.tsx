@@ -246,7 +246,7 @@ const DashboardV2 = () => {
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+      <main className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
         {/* Main Content Area */}
         <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6">
           {projects.map((project) => {
