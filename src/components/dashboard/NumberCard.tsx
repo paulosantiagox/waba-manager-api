@@ -77,7 +77,7 @@ const NumberCard = ({ number, onViewHistory, onEdit, onDelete, onToggleVisibilit
               <p className="text-xs text-muted-foreground flex items-center gap-1">
                 ✓ {number.verifiedName}
               </p>
-              <h3 className="font-medium text-foreground truncate">
+              <h3 className="font-medium text-foreground">
                 {number.displayPhoneNumber}
               </h3>
             </div>
