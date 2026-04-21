@@ -163,7 +163,18 @@ const DashboardV2 = () => {
                             )}
                           </div>
                         </div>
-                        
+                        {number.lastStatusChange && (
+                          <div className="flex items-center gap-1 text-[9px] text-muted-foreground mt-2 mb-1">
+                            <Clock className="w-3 h-3" />
+                            <span>
+                              {(() => {
+                                const days = differenceInDays(new Date(), new Date(number.lastStatusChange!));
+                                return `+${days} dias em ${number.qualityRating === 'HIGH' ? 'Alta' : number.qualityRating === 'MEDIUM' ? 'Média' : 'Baixa'}`;
+                              })()}
+                            </span>
+                          </div>
+                        )}
+
                         <div className="flex items-center justify-between text-[10px] pt-2 border-t border-border/50">
                           <span className="text-muted-foreground">
                             {(!number.messagingLimitTier || number.messagingLimitTier === 'Não definido') 
