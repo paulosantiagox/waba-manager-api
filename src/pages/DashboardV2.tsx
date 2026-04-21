@@ -14,7 +14,13 @@ import {
   Maximize2,
   ChevronRight,
   RefreshCw,
-  Clock
+  Clock,
+  Filter,
+  CheckCircle2,
+  AlertCircle,
+  XCircle,
+  ArrowUpDown,
+  ListFilter
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,11 +42,51 @@ const DashboardV2 = () => {
   const isMobile = useIsMobile();
   const [isUpdating, setIsUpdating] = useState(false);
   const [selectedNumberId, setSelectedNumberId] = useState<string | null>(null);
+  const [sortMode, setSortMode] = useState<'none' | 'priority' | 'days'>('none');
+
+  const getQualityValue = (rating: string) => {
+    switch (rating) {
+      case 'HIGH': return 3;
+      case 'MEDIUM': return 2;
+      case 'LOW': return 1;
+      default: return 0;
+    }
+  };
+
+  const getDays = (date?: string) => {
+    if (!date) return 0;
+    return differenceInDays(new Date(), new Date(date));
+  };
 
   const projectIds = projects.map(p => p.id);
   // MOSTRAR APENAS NÚMEROS ATIVOS (isVisible)
-  const userNumbers = allNumbers.filter(n => projectIds.includes(n.projectId) && n.isVisible);
+  let userNumbers = allNumbers.filter(n => projectIds.includes(n.projectId) && n.isVisible);
+
+  if (sortMode === 'priority') {
+    userNumbers = [...userNumbers].sort((a, b) => {
+      const qA = getQualityValue(a.qualityRating);
+      const qB = getQualityValue(b.qualityRating);
+      if (qA !== qB) return qB - qA;
+      return getDays(b.lastStatusChange) - getDays(a.lastStatusChange);
+    });
+  } else if (sortMode === 'days') {
+    userNumbers = [...userNumbers].sort((a, b) => {
+      // Prioritize High quality, then by days
+      const qA = a.qualityRating === 'HIGH' ? 1 : 0;
+      const qB = b.qualityRating === 'HIGH' ? 1 : 0;
+      if (qA !== qB) return qB - qA;
+      return getDays(b.lastStatusChange) - getDays(a.lastStatusChange);
+    });
+  }
+
   const { data: recentChanges = [], refetch: refetchChanges } = useRecentStatusChanges(projectIds);
+
+  const PulsingDot = () => (
+    <span className="relative flex h-2 w-2">
+      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+    </span>
+  );
 
   const handleUpdateAll = async () => {
     setIsUpdating(true);
@@ -95,13 +141,43 @@ const DashboardV2 = () => {
             </Button>
           </Link>
           <div className="h-4 w-[1px] bg-border" />
-          <div>
-            <h1 className="text-lg font-bold tracking-tight">Monitoramento Global V2</h1>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-bold tracking-tight">Monitoramento Global V2</h1>
+              <PulsingDot />
+            </div>
             <p className="text-xs text-muted-foreground hidden sm:block">Status em tempo real de todas as contas</p>
           </div>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-1 mr-2">
+            <Button 
+              variant={sortMode === 'none' ? 'secondary' : 'ghost'} 
+              size="sm" 
+              className="h-7 text-[10px] px-2 font-bold"
+              onClick={() => setSortMode('none')}
+            >
+              Normal
+            </Button>
+            <Button 
+              variant={sortMode === 'priority' ? 'secondary' : 'ghost'} 
+              size="sm" 
+              className="h-7 text-[10px] px-2 font-bold"
+              onClick={() => setSortMode('priority')}
+            >
+              Prioridade
+            </Button>
+            <Button 
+              variant={sortMode === 'days' ? 'secondary' : 'ghost'} 
+              size="sm" 
+              className="h-7 text-[10px] px-2 font-bold"
+              onClick={() => setSortMode('days')}
+            >
+              Dias em Alta
+            </Button>
+          </div>
+
           <Button 
             size="sm" 
             className="hidden sm:flex bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 text-primary-foreground font-bold transition-all gap-2 h-9"
@@ -111,11 +187,8 @@ const DashboardV2 = () => {
             <RefreshCw className={cn("w-4 h-4", isUpdating && "animate-spin")} />
             {isUpdating ? 'Atualizando...' : 'Atualizar Tudo'}
           </Button>
-          <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 font-bold h-9 px-3">
+          <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 font-bold h-9 px-3 hidden md:flex">
             {userNumbers.length} Ativos
-          </Badge>
-          <Badge variant="outline" className="bg-secondary/5 text-secondary border-secondary/20 font-bold h-9 px-3">
-            {projects.length} Projetos
           </Badge>
         </div>
       </header>
@@ -123,80 +196,53 @@ const DashboardV2 = () => {
       <main className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         {/* Main Content Area */}
         <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6">
-          {projects.map((project) => {
-            const projectNumbers = userNumbers.filter(n => n.projectId === project.id);
-            if (projectNumbers.length === 0) return null;
+          {sortMode !== 'none' ? (
+            <section className="space-y-3">
+              <div className="flex items-center justify-between px-1">
+                <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                  <ListFilter className="w-4 h-4 text-primary" />
+                  Organizado por {sortMode === 'priority' ? 'Prioridade' : 'Mais dias em Alta'}
+                  <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded ml-2 normal-case font-medium">
+                    {userNumbers.length}
+                  </span>
+                </h2>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
+                {userNumbers.map((number) => {
+...
+keep existing code
+...
+                })}
+              </div>
+            </section>
+          ) : (
+            projects.map((project) => {
+              const projectNumbers = userNumbers.filter(n => n.projectId === project.id);
+              if (projectNumbers.length === 0) return null;
 
-            return (
-              <section key={project.id} className="space-y-3">
-                <div className="flex items-center justify-between px-1">
-                  <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                    <ChevronRight className="w-4 h-4 text-primary" />
-                    {project.name}
-                    <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded ml-2 normal-case font-medium">
-                      {projectNumbers.length}
-                    </span>
-                  </h2>
-                </div>
+              return (
+                <section key={project.id} className="space-y-3">
+                  <div className="flex items-center justify-between px-1">
+                    <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                      <ChevronRight className="w-4 h-4 text-primary" />
+                      {project.name}
+                      <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded ml-2 normal-case font-medium">
+                        {projectNumbers.length}
+                      </span>
+                    </h2>
+                  </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
-                  {projectNumbers.map((number) => (
-                    <Card 
-                      key={number.id} 
-                      className="overflow-hidden border-none shadow-sm hover:shadow-md transition-shadow group cursor-pointer"
-                      onClick={() => setSelectedNumberId(number.id)}
-                    >
-                      <CardContent className="p-3">
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-2 overflow-hidden">
-                            <div className="bg-primary/10 p-1.5 rounded-lg group-hover:bg-primary/20 transition-colors shrink-0">
-                              <Phone className="w-3.5 h-3.5 text-primary" />
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-1">
-                                <p className="text-xs font-bold leading-tight bg-primary/5 text-primary px-1.5 py-0.5 rounded border border-primary/10">
-                                  {number.customName || number.verifiedName}
-                                </p>
-                              </div>
-                              <p className="text-[10px] text-muted-foreground truncate">
-                                {number.displayPhoneNumber}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex flex-col items-end gap-1">
-                            <QualityBadge rating={number.qualityRating} size="sm" />
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between text-[9px] text-muted-foreground mt-2 mb-1">
-                          <div className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            <span>
-                              {getDaysInStatus(number.lastStatusChange)} em {number.qualityRating === 'HIGH' ? 'Alta' : number.qualityRating === 'MEDIUM' ? 'Média' : 'Baixa'}
-                            </span>
-                          </div>
-                          <span className="shrink-0">
-                            {number.lastChecked ? format(new Date(number.lastChecked), "dd/MM HH:mm") : '--/-- --:--'}
-                          </span>
-                        </div>
-
-                        <div className="pt-2 border-t border-border/50 flex flex-wrap gap-x-2 text-[8px] text-muted-foreground uppercase font-medium">
-                          {number.previousQuality ? (
-                            <span>
-                              Antes: {number.previousQuality === 'HIGH' ? 'Alta' : number.previousQuality === 'MEDIUM' ? 'Média' : 'Baixa'}•{number.lastStatusChange ? format(new Date(number.lastStatusChange), "dd/MM/yy") : '--/--/--'}
-                            </span>
-                          ) : (
-                            <span>
-                              {number.qualityRating === 'HIGH' ? 'Alta' : number.qualityRating === 'MEDIUM' ? 'Média' : 'Baixa'} Desde: {number.lastStatusChange ? format(new Date(number.lastStatusChange), "dd/MM/yy") : '--/--/--'}
-                            </span>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </section>
-            );
-          })}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
+                    {projectNumbers.map((number) => (
+...
+keep existing code
+...
+                    ))}
+                  </div>
+                </section>
+              );
+            })
+          )}
         </div>
 
         {/* Right Sidebar - Recent History */}
@@ -220,7 +266,7 @@ const DashboardV2 = () => {
               recentChanges.map((change) => (
                 <div 
                   key={change.id} 
-                  className="relative pl-5 pb-2 border-l border-border last:pb-0 group cursor-pointer"
+                  className="relative pl-6 pb-4 border-l border-border last:pb-0 group cursor-pointer"
                   onClick={() => setSelectedNumberId(change.phoneNumberId)}
                 >
                   <div className={cn(
@@ -228,16 +274,20 @@ const DashboardV2 = () => {
                     change.direction === 'up' ? "bg-success" : "bg-destructive"
                   )} />
                   <div className="space-y-0">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-primary">
-                        {format(new Date(change.changedAt), "dd/MM '•' HH:mm", { locale: ptBR })}
-                      </span>
-                      {change.direction === 'up' 
-                        ? <TrendingUp className="w-2.5 h-2.5 text-success" /> 
-                        : <TrendingDown className="w-2.5 h-2.5 text-destructive" />
-                      }
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <span className="text-[10px] font-bold text-primary">
+                          {format(new Date(change.changedAt), "dd/MM '•' HH:mm", { locale: ptBR })}
+                        </span>
+                        <p className="text-[11px] font-bold leading-tight group-hover:text-primary transition-colors pr-8">{change.numberName}</p>
+                      </div>
+                      <div className="shrink-0 -mt-1">
+                        {change.direction === 'up' 
+                          ? <TrendingUp className="w-10 h-10 text-success/20 group-hover:text-success/40 transition-colors" /> 
+                          : <TrendingDown className="w-10 h-10 text-destructive/20 group-hover:text-destructive/40 transition-colors" />
+                        }
+                      </div>
                     </div>
-                    <p className="text-[11px] font-bold leading-tight group-hover:text-primary transition-colors">{change.numberName}</p>
                     <div className="flex items-center gap-1">
                       <div className="opacity-50 scale-90 origin-left grayscale">
                         <QualityBadge rating={change.previousQuality} size="sm" />
