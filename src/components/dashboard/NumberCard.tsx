@@ -82,7 +82,7 @@ const NumberCard = ({ number, onViewHistory, onEdit, onDelete, onToggleVisibilit
             )}
             
             <div>
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <p className="text-sm text-muted-foreground flex items-center gap-1">
                 ✓ {number.verifiedName}
               </p>
               <h3 className="font-medium text-foreground">
@@ -92,7 +92,7 @@ const NumberCard = ({ number, onViewHistory, onEdit, onDelete, onToggleVisibilit
 
             <div className="flex flex-wrap items-center gap-2">
               <QualityBadge rating={number.qualityRating} size="sm" />
-              <span className="text-xs text-muted-foreground flex items-center gap-1">
+              <span className="text-sm text-muted-foreground flex items-center gap-1">
                 <MessageCircle className="w-3 h-3" />
                 {number.messagingLimitTier}
               </span>
@@ -100,14 +100,14 @@ const NumberCard = ({ number, onViewHistory, onEdit, onDelete, onToggleVisibilit
 
             {recoveryDate && (
               <p className={cn(
-                "text-xs flex items-center gap-1",
+                "text-sm flex items-center gap-1",
                 number.qualityRating === 'MEDIUM' ? "text-warning" : "text-destructive"
               )}>
                 {number.qualityRating === 'MEDIUM' ? '⚠️' : '⛔'} Recuperação em {days} dias ({recoveryDate})
               </p>
             )}
 
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               ID: {number.phoneNumberId}
             </p>
           </div>
@@ -121,7 +121,7 @@ const NumberCard = ({ number, onViewHistory, onEdit, onDelete, onToggleVisibilit
             ) : (
               <EyeOff className="w-4 h-4 text-muted-foreground" />
             )}
-            <span className="text-xs text-muted-foreground">Visível</span>
+            <span className="text-sm text-muted-foreground">Visível</span>
             <Switch 
               checked={number.isVisible}
               onCheckedChange={onToggleVisibility}
