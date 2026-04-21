@@ -199,22 +199,22 @@ const DashboardV2 = () => {
               <RefreshCw className="w-3.5 h-3.5" />
             </Button>
           </div>
-          <div className="flex-1 overflow-y-auto p-3 space-y-3">
+          <div className="flex-1 overflow-y-auto p-3 space-y-2">
             {recentChanges.length > 0 ? (
               recentChanges.map((change) => (
                 <div 
                   key={change.id} 
-                  className="relative pl-5 pb-3 border-l border-border last:pb-0 group cursor-pointer"
+                  className="relative pl-5 pb-2 border-l border-border last:pb-0 group cursor-pointer"
                   onClick={() => setSelectedNumberId(change.phoneNumberId)}
                 >
                   <div className={cn(
-                    "absolute left-[-4.5px] top-1 w-2 h-2 rounded-full border border-white dark:border-slate-900",
+                    "absolute left-[-4.5px] top-1.5 w-2 h-2 rounded-full border border-white dark:border-slate-900",
                     change.direction === 'up' ? "bg-success" : "bg-destructive"
                   )} />
-                  <div className="space-y-0.5">
+                  <div className="space-y-0">
                     <div className="flex items-center justify-between">
-                      <span className="text-[9px] font-bold text-muted-foreground">
-                        {format(new Date(change.changedAt), "HH:mm '•' dd/MM", { locale: ptBR })}
+                      <span className="text-[10px] font-bold text-primary">
+                        {format(new Date(change.changedAt), "dd/MM '•' HH:mm", { locale: ptBR })}
                       </span>
                       {change.direction === 'up' 
                         ? <TrendingUp className="w-2.5 h-2.5 text-success" /> 
@@ -228,7 +228,11 @@ const DashboardV2 = () => {
                       </span>
                       <ChevronRight className="w-2 h-2 text-muted-foreground" />
                       <QualityBadge rating={change.currentQuality} size="sm" showLabel={false} />
-                      <span className="text-[10px] font-medium">
+                      <span className={cn(
+                        "text-[10px] font-bold",
+                        change.currentQuality === 'HIGH' ? "text-success" : 
+                        change.currentQuality === 'MEDIUM' ? "text-warning" : "text-destructive"
+                      )}>
                         {change.currentQuality === 'HIGH' ? 'Alta' : change.currentQuality === 'MEDIUM' ? 'Média' : 'Baixa'}
                       </span>
                     </div>
