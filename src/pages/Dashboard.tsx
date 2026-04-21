@@ -7,7 +7,7 @@ import { useProjects, useCreateProject } from '@/hooks/useProjects';
 import { useAllWhatsAppNumbers } from '@/hooks/useWhatsAppNumbers';
 import { useUsers } from '@/hooks/useUsers';
 import { useRecentStatusChanges } from '@/hooks/useRecentStatusChanges';
-import { Users, FolderKanban, Phone, Megaphone, Activity, TrendingUp, TrendingDown, ArrowRight, Loader2, Plus, Maximize2 } from 'lucide-react';
+import { Users, FolderKanban, Phone, Megaphone, Activity, TrendingUp, TrendingDown, ArrowRight, Loader2, Plus, Maximize2, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,8 @@ import QualityBadge from '@/components/dashboard/QualityBadge';
 import { Link, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 
 const MasterDashboard = () => {
   const { data: users = [] } = useUsers();
