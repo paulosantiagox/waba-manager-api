@@ -223,7 +223,11 @@ const DashboardV2 = () => {
                     </div>
                     <p className="text-[11px] font-bold leading-tight group-hover:text-primary transition-colors">{change.numberName}</p>
                     <div className="flex items-center gap-1">
-                      <span className="text-[9px] text-muted-foreground opacity-70 line-through">
+                      <span className={cn(
+                        "text-[9px] opacity-70 line-through decoration-muted-foreground",
+                        change.previousQuality === 'HIGH' ? "text-success" : 
+                        change.previousQuality === 'MEDIUM' ? "text-warning" : "text-destructive"
+                      )}>
                         {change.previousQuality === 'HIGH' ? 'Alta' : change.previousQuality === 'MEDIUM' ? 'Média' : 'Baixa'}
                       </span>
                       <ChevronRight className="w-2 h-2 text-muted-foreground" />
