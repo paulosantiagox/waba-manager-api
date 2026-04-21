@@ -231,7 +231,7 @@ const UserDashboard = () => {
                       </div>
                       <div className="flex items-center gap-3">
                         <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-1 rounded-md">
-                          {format(new Date(change.changedAt), "dd MMM", { locale: ptBR })}
+                          {format(new Date(change.changedAt), "dd/MM HH:mm", { locale: ptBR })}
                         </span>
                         <ArrowRight className="w-4 h-4 text-primary opacity-0 group-hover:opacity-100 transition-all translate-x-[-4px] group-hover:translate-x-0" />
                       </div>

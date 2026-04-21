@@ -178,7 +178,7 @@ const DashboardV2 = () => {
                             }
                           </span>
                           <span className="text-muted-foreground">
-                            {number.lastChecked ? format(new Date(number.lastChecked), "HH:mm") : '--:--'}
+                            {number.lastChecked ? format(new Date(number.lastChecked), "dd/MM HH:mm") : '--/-- --:--'}
                           </span>
                         </div>
                       </CardContent>
