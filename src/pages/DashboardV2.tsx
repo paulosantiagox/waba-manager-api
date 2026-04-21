@@ -143,17 +143,11 @@ const DashboardV2 = () => {
                             <div className="bg-primary/10 p-1.5 rounded-lg group-hover:bg-primary/20 transition-colors shrink-0">
                               <Phone className="w-3.5 h-3.5 text-primary" />
                             </div>
-                            <div className="truncate">
+                            <div>
                               <div className="flex items-center gap-1">
-                                <p className="text-xs font-bold truncate leading-tight bg-primary/5 text-primary px-1.5 py-0.5 rounded border border-primary/10">
+                                <p className="text-xs font-bold leading-tight bg-primary/5 text-primary px-1.5 py-0.5 rounded border border-primary/10">
                                   {number.customName || number.verifiedName}
                                 </p>
-                                {number.lastStatusChange && (
-                                  <span className="text-[10px] text-muted-foreground font-medium bg-muted px-1 rounded flex items-center gap-0.5">
-                                    <Clock className="w-2.5 h-2.5" />
-                                    {getDaysInStatus(number.lastStatusChange)}
-                                  </span>
-                                )}
                               </div>
                               <p className="text-[10px] text-muted-foreground truncate">
                                 {number.displayPhoneNumber}
