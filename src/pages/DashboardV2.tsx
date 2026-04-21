@@ -93,7 +93,7 @@ const DashboardV2 = () => {
         <div className="flex items-center gap-3">
           <Button 
             size="sm" 
-            className="hidden sm:flex bg-indigo-500 hover:bg-indigo-600 shadow-lg shadow-indigo-200 text-white font-bold transition-all gap-2 h-9"
+            className="hidden sm:flex bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 text-primary-foreground font-bold transition-all gap-2 h-9"
             onClick={handleUpdateAll}
             disabled={isUpdating}
           >
