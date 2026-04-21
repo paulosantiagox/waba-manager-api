@@ -591,10 +591,12 @@ const ProjectDetail = () => {
       <Card className="mb-8 overflow-hidden">
         <div className="gradient-primary p-6">
           <h2 className="text-lg font-semibold text-primary-foreground mb-4">Resumo do Projeto</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-            <div><div className="flex items-center gap-2 text-primary-foreground/80 text-sm mb-1"><Phone className="w-4 h-4" />Total de Números</div><p className="text-3xl font-bold text-primary-foreground">{numbers.length}</p></div>
-            <div><div className="flex items-center gap-2 text-primary-foreground/80 text-sm mb-1"><Activity className="w-4 h-4" />Status</div><div className="flex items-center gap-2 text-primary-foreground"><span className="text-lg font-semibold">🟢 {statusCounts.high}</span><span className="text-lg font-semibold">🟡 {statusCounts.medium}</span><span className="text-lg font-semibold">🔴 {statusCounts.low}</span></div></div>
-            <div><div className="flex items-center gap-2 text-primary-foreground/80 text-sm mb-1"><Building2 className="w-4 h-4" />BMs Cadastradas</div><p className="text-3xl font-bold text-primary-foreground">{projectBMs.length}</p></div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+            <div><div className="flex items-center gap-2 text-primary-foreground/80 text-sm mb-1"><Phone className="w-4 h-4" />Total</div><p className="text-3xl font-bold text-primary-foreground">{numbers.length}</p></div>
+            <div><div className="flex items-center gap-2 text-primary-foreground/80 text-sm mb-1"><TrendingUp className="w-4 h-4 text-success-foreground" />Alta</div><p className="text-3xl font-bold text-primary-foreground">{statusCounts.high}</p></div>
+            <div><div className="flex items-center gap-2 text-primary-foreground/80 text-sm mb-1"><Activity className="w-4 h-4 text-warning-foreground" />Média</div><p className="text-3xl font-bold text-primary-foreground">{statusCounts.medium}</p></div>
+            <div><div className="flex items-center gap-2 text-primary-foreground/80 text-sm mb-1"><TrendingDown className="w-4 h-4 text-destructive-foreground" />Baixa</div><p className="text-3xl font-bold text-primary-foreground">{statusCounts.low}</p></div>
+            <div><div className="flex items-center gap-2 text-primary-foreground/80 text-sm mb-1"><Building2 className="w-4 h-4" />BMs</div><p className="text-3xl font-bold text-primary-foreground">{projectBMs.length}</p></div>
           </div>
         </div>
       </Card>
