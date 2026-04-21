@@ -363,7 +363,7 @@ const ProjectDetail = () => {
               <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
                 {number.photo ? <img src={number.photo} alt="" className="w-full h-full object-cover" /> : <Phone className="w-5 h-5 text-muted-foreground" />}
               </div>
-              <div>
+              <div className="whitespace-nowrap">
                 {number.customName && <p className="font-medium text-sm">{number.customName}</p>}
                 <p className={`${number.customName ? 'text-xs text-muted-foreground' : 'font-medium text-sm'}`}>{number.verifiedName}</p>
                 <p className="text-xs text-muted-foreground">{number.displayPhoneNumber}</p>
