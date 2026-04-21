@@ -164,17 +164,27 @@ const DashboardV2 = () => {
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-1 text-[9px] text-muted-foreground mt-2 mb-1">
-                          <Clock className="w-3 h-3" />
-                          <span>
-                            {getDaysInStatus(number.lastStatusChange)} em {number.qualityRating === 'HIGH' ? 'Alta' : number.qualityRating === 'MEDIUM' ? 'Média' : 'Baixa'}
+                        <div className="flex items-center justify-between text-[9px] text-muted-foreground mt-2 mb-1">
+                          <div className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            <span>
+                              {getDaysInStatus(number.lastStatusChange)} em {number.qualityRating === 'HIGH' ? 'Alta' : number.qualityRating === 'MEDIUM' ? 'Média' : 'Baixa'}
+                            </span>
+                          </div>
+                          <span className="shrink-0">
+                            {number.lastChecked ? format(new Date(number.lastChecked), "dd/MM HH:mm") : '--/-- --:--'}
                           </span>
                         </div>
 
-                        <div className="flex items-center justify-end text-[10px] pt-2 border-t border-border/50">
-                          <span className="text-muted-foreground">
-                            {number.lastChecked ? format(new Date(number.lastChecked), "dd/MM HH:mm") : '--/-- --:--'}
+                        <div className="pt-2 border-t border-border/50 flex flex-wrap gap-x-2 text-[8px] text-muted-foreground uppercase font-medium">
+                          <span>
+                            {number.qualityRating === 'HIGH' ? 'Alta' : number.qualityRating === 'MEDIUM' ? 'Média' : 'Baixa'} Desde: {number.lastStatusChange ? format(new Date(number.lastStatusChange), "dd/MM/yy") : '--/--/--'}
                           </span>
+                          {number.previousQuality && (
+                            <span>
+                              Antes: {number.previousQuality === 'HIGH' ? 'Alta' : number.previousQuality === 'MEDIUM' ? 'Média' : 'Baixa'}•{number.lastStatusChange ? format(new Date(number.lastStatusChange), "dd/MM/yy") : '--/--/--'}
+                            </span>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
