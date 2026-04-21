@@ -61,7 +61,7 @@ const DashboardV2 = () => {
   };
 
   const getDaysInStatus = (lastChangeDate?: string) => {
-    if (!lastChangeDate) return "Novo";
+    if (!lastChangeDate) return "0d";
     const days = differenceInDays(new Date(), new Date(lastChangeDate));
     return `${days}d`;
   };
