@@ -71,10 +71,16 @@ const getQualityColor = (quality: string) => {
 };
 
 const UserDashboard = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { data: projects = [], isLoading } = useProjects();
   const { data: allNumbers = [] } = useAllWhatsAppNumbers();
+  const createProject = useCreateProject();
   
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [projectName, setProjectName] = useState('');
+  const [projectDescription, setProjectDescription] = useState('');
+
   const projectIds = projects.map(p => p.id);
   const { data: recentChanges = [] } = useRecentStatusChanges(projectIds);
 
@@ -84,6 +90,21 @@ const UserDashboard = () => {
     high: userNumbers.filter(n => n.qualityRating === 'HIGH').length,
     medium: userNumbers.filter(n => n.qualityRating === 'MEDIUM').length,
     low: userNumbers.filter(n => n.qualityRating === 'LOW').length,
+  };
+
+  const handleCreateProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!projectName.trim()) return;
+
+    const result = await createProject.mutateAsync({
+      name: projectName.trim(),
+      description: projectDescription.trim() || undefined,
+    });
+
+    setProjectName('');
+    setProjectDescription('');
+    setIsDialogOpen(false);
+    navigate(`/projects/${result.id}`);
   };
 
   if (isLoading) {
@@ -99,86 +120,135 @@ const UserDashboard = () => {
         <StatsCard title="Status dos Números" value={`${statusCounts.high}/${statusCounts.medium}/${statusCounts.low}`} subtitle="Alta / Média / Baixa" icon={Activity} />
       </div>
 
-      {/* Mudanças de Status Recentes */}
-      {recentChanges.length > 0 && (
-        <Card className="mb-6 animate-slide-up">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Activity className="w-5 h-5 text-primary" />
-              Mudanças de Status Recentes
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="space-y-1">
-              {recentChanges.map((change) => (
-                <Link
-                  key={change.id}
-                  to={`/projects/${change.projectId}`}
-                  className="flex items-center justify-between py-3 px-2 -mx-2 rounded-lg hover:bg-muted/50 transition-colors group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      change.direction === 'up' 
-                        ? 'bg-emerald-500/10 text-emerald-500' 
-                        : 'bg-red-500/10 text-red-500'
-                    }`}>
-                      {change.direction === 'up' 
-                        ? <TrendingUp className="w-4 h-4" /> 
-                        : <TrendingDown className="w-4 h-4" />
-                      }
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-sm">{change.numberName}</p>
-                          <QualityBadge rating={change.currentQuality} size="sm" />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        {/* Mudanças de Status Recentes */}
+        <div className="lg:col-span-2">
+          <Card className="h-full animate-slide-up">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                <Activity className="w-5 h-5 text-primary" />
+                Atividade Recente
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {recentChanges.length > 0 ? (
+                <div className="space-y-1">
+                  {recentChanges.slice(0, 5).map((change) => (
+                    <Link
+                      key={change.id}
+                      to={`/projects/${change.projectId}`}
+                      className="flex items-center justify-between py-3 px-3 rounded-xl hover:bg-muted/50 transition-all group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                          change.direction === 'up' 
+                            ? 'bg-emerald-500/10 text-emerald-500' 
+                            : 'bg-red-500/10 text-red-500'
+                        }`}>
+                          {change.direction === 'up' 
+                            ? <TrendingUp className="w-5 h-5" /> 
+                            : <TrendingDown className="w-5 h-5" />
+                          }
                         </div>
-                        <p className="text-xs">
-                          <span className={getQualityColor(change.previousQuality)}>
-                            {getQualityLabel(change.previousQuality)}
-                          </span>
-                          <span className="text-muted-foreground"> → </span>
-                          <span className={getQualityColor(change.currentQuality)}>
-                            {getQualityLabel(change.currentQuality)}
-                          </span>
-                          <span className="mx-1 text-muted-foreground">•</span>
-                          <span className="text-muted-foreground">{change.projectName}</span>
-                        </p>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-sm">{change.numberName}</p>
+                            <QualityBadge rating={change.currentQuality} size="sm" />
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {change.projectName}
+                          </p>
+                        </div>
                       </div>
-                    </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-1 rounded-md">
+                          {format(new Date(change.changedAt), "dd MMM", { locale: ptBR })}
+                        </span>
+                        <ArrowRight className="w-4 h-4 text-primary opacity-0 group-hover:opacity-100 transition-all translate-x-[-4px] group-hover:translate-x-0" />
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <Activity className="w-12 h-12 text-muted-foreground/20 mb-3" />
+                  <p className="text-sm text-muted-foreground">Nenhuma mudança de status recente.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Quick Actions / Info */}
+        <Card className="animate-slide-up [animation-delay:0.1s]">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Ações Rápidas</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="w-full gradient-primary shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Novo Projeto
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Criar Novo Projeto</DialogTitle>
+                </DialogHeader>
+                <form className="space-y-4 mt-4" onSubmit={handleCreateProject}>
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Nome do Projeto</Label>
+                    <Input id="name" placeholder="Ex: E-commerce Principal" value={projectName} onChange={(e) => setProjectName(e.target.value)} />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">
-                      {format(new Date(change.changedAt), "dd/MM", { locale: ptBR })}
-                    </span>
-                    <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="space-y-2">
+                    <Label htmlFor="description">Descrição (opcional)</Label>
+                    <Textarea id="description" placeholder="Descreva o propósito deste projeto..." value={projectDescription} onChange={(e) => setProjectDescription(e.target.value)} />
                   </div>
-                </Link>
-              ))}
-            </div>
+                  <div className="flex justify-end gap-2 pt-4">
+                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
+                    <Button type="submit" className="gradient-primary" disabled={createProject.isPending}>
+                      {createProject.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                      Criar Projeto
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+            
+            <Link to="/projects">
+              <Button variant="outline" className="w-full mt-2">
+                <FolderKanban className="w-4 h-4 mr-2" />
+                Ver Todos Projetos
+              </Button>
+            </Link>
           </CardContent>
         </Card>
-      )}
+      </div>
 
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Meus Projetos</h2>
-          <Badge variant="secondary">{projects.length} projetos</Badge>
+          <h2 className="text-xl font-bold tracking-tight">Meus Projetos</h2>
+          <Badge variant="secondary" className="px-3 py-1">{projects.length} projetos</Badge>
         </div>
 
         {projects.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.map((project, index) => (
+            {projects.slice(0, 3).map((project, index) => (
               <div key={project.id} style={{ animationDelay: `${index * 0.1}s` }}>
                 <ProjectCard project={project} numbers={allNumbers.filter(n => n.projectId === project.id)} />
               </div>
             ))}
           </div>
         ) : (
-          <Card className="p-12 text-center">
-            <FolderKanban className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
-            <h3 className="font-medium text-lg mb-2">Nenhum projeto ainda</h3>
-            <p className="text-muted-foreground">Crie seu primeiro projeto para começar a monitorar seus números WhatsApp.</p>
+          <Card className="p-12 text-center border-dashed">
+            <FolderKanban className="w-12 h-12 mx-auto text-muted-foreground/30 mb-4" />
+            <h3 className="font-semibold text-lg mb-2">Nenhum projeto ainda</h3>
+            <p className="text-muted-foreground mb-6">Crie seu primeiro projeto para começar a monitorar seus números WhatsApp.</p>
+            <Button className="gradient-primary" onClick={() => setIsDialogOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Começar Agora
+            </Button>
           </Card>
         )}
       </div>
