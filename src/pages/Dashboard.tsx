@@ -22,6 +22,7 @@ import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/lib/supabase';
 import { supabase as lovableSupabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 const MasterDashboard = () => {
   const { data: users = [] } = useUsers();
@@ -137,7 +138,7 @@ const UserDashboard = () => {
   const handleUpdateAll = async () => {
     setIsUpdating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('auto-update-status', {
+      const { data, error } = await lovableSupabase.functions.invoke('auto-update-status', {
         body: { manual: true }
       });
 
