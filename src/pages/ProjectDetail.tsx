@@ -363,7 +363,7 @@ const ProjectDetail = () => {
               <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
                 {number.photo ? <img src={number.photo} alt="" className="w-full h-full object-cover" /> : <Phone className="w-5 h-5 text-muted-foreground" />}
               </div>
-              <div>
+              <div className="whitespace-nowrap">
                 {number.customName && <p className="font-medium text-sm">{number.customName}</p>}
                 <p className={`${number.customName ? 'text-xs text-muted-foreground' : 'font-medium text-sm'}`}>{number.verifiedName}</p>
                 <p className="text-xs text-muted-foreground">{number.displayPhoneNumber}</p>
@@ -395,19 +395,6 @@ const ProjectDetail = () => {
                         {errorInfo.errorCount > 1 && ` (${errorInfo.errorCount} tentativas)`}
                       </p>
                     </div>
-                  </TooltipContent>
-                </Tooltip>
-              )}
-              {/* Indicador de dias no status atual - calculado do histórico */}
-              {daysInCurrentStatus !== null && daysInCurrentStatus >= 0 && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="text-[10px] font-medium text-muted-foreground">
-                      +{daysInCurrentStatus}d
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{daysInCurrentStatus === 0 ? 'Mudou hoje' : `Há ${daysInCurrentStatus} dia${daysInCurrentStatus !== 1 ? 's' : ''} neste status`}</p>
                   </TooltipContent>
                 </Tooltip>
               )}
@@ -445,6 +432,15 @@ const ProjectDetail = () => {
                 );
               })()}
             </div>
+            
+            {/* Indicador de dias no status atual com ícone de relógio */}
+            {daysInCurrentStatus !== null && daysInCurrentStatus >= 0 && (
+              <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-1">
+                <Clock className="w-3 h-3" />
+                <span>+{daysInCurrentStatus} dias em {number.qualityRating === 'HIGH' ? 'Alta' : number.qualityRating === 'MEDIUM' ? 'Média' : 'Baixa'}</span>
+              </div>
+            )}
+
             {/* Status anterior e data - calculado do histórico */}
             {statusStartDate && (
               <div className="text-[10px] text-muted-foreground mt-0.5">
