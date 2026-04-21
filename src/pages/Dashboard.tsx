@@ -191,11 +191,13 @@ const UserDashboard = () => {
 
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
         <StatsCard title="Meus Projetos" value={projects.length} icon={FolderKanban} variant="primary" />
-        <StatsCard title="Números Monitorados" value={userNumbers.length} icon={Phone} />
-        <StatsCard title="Campanhas Ativas" value={0} icon={Megaphone} />
-        <StatsCard title="Status dos Números" value={`${statusCounts.high}/${statusCounts.medium}/${statusCounts.low}`} subtitle="Alta / Média / Baixa" icon={Activity} />
+        <StatsCard title="Números Ativos" value={userNumbers.length} icon={Phone} />
+        <StatsCard title="Disparos" value={0} icon={Megaphone} />
+        <StatsCard title="Alta Qualidade" value={statusCounts.high} icon={TrendingUp} variant="success" />
+        <StatsCard title="Média Qualidade" value={statusCounts.medium} icon={Activity} variant="warning" />
+        <StatsCard title="Baixa Qualidade" value={statusCounts.low} icon={TrendingDown} variant="destructive" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
