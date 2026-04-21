@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
       if (bmsErr) throw bmsErr
       
       const projectIds = [...new Set(bms.map(b => b.project_id))]
-      matchingSchedules = projectIds.map(id => ({ project_id: id, time: 'manual' }))
+      matchingSchedules = projectIds.map(id => ({ project_id: id, time: `manual-${brasiliaTime}` }))
     } else {
       // Busca todos os schedules
       console.log('[AUTO_UPDATE] Buscando schedules...')
@@ -106,14 +106,15 @@ Deno.serve(async (req) => {
     let totalErrors = 0
     const executedProjects: string[] = []
 
-    // Processar cada projeto
-    for (const [projectId, scheduleTimes] of projectScheduleMap) {
-      // Para cada horário do projeto, tenta registrar execução (deduplicação)
+    // Processar projetos em paralelo para ganhar tempo
+    const projectPromises = Array.from(projectScheduleMap.entries()).map(async ([projectId, scheduleTimes]) => {
+      let projectNumbersUpdated = 0
+      let projectErrors = 0
+
       for (const scheduleTime of scheduleTimes) {
-        console.log(`[AUTO_UPDATE] Tentando executar ${projectId} para ${scheduleTime}`)
+        console.log(`[AUTO_UPDATE] Processando ${projectId} para ${scheduleTime}`)
         
         // DEDUPLICAÇÃO: Tenta inserir na tabela de execuções
-        // Se já existe, o insert falha e pulamos
         const { error: execError } = await supabase
           .from('waba_project_schedule_executions')
           .insert({
@@ -125,15 +126,9 @@ Deno.serve(async (req) => {
           })
 
         if (execError) {
-          if (execError.code === '23505') {
-            // Violação de unique constraint = já executou hoje
+          if (execError.code === '23505' && !manual) {
             console.log(`[AUTO_UPDATE] Schedule ${scheduleTime} do projeto ${projectId} já foi executado hoje, pulando`)
             continue
-          } else if (execError.message?.includes('does not exist')) {
-            // Tabela não existe ainda, continua sem deduplicação
-            console.log(`[AUTO_UPDATE] Tabela project_schedule_executions não existe, executando sem deduplicação`)
-          } else {
-            console.error(`[AUTO_UPDATE] Erro ao registrar execução:`, execError)
           }
         }
 
@@ -144,18 +139,13 @@ Deno.serve(async (req) => {
           .eq('project_id', projectId)
 
         if (bmsError) {
-          console.error(`[AUTO_UPDATE] Erro ao buscar BMs:`, bmsError)
-          totalErrors++
+          console.error(`[AUTO_UPDATE] Erro ao buscar BMs para projeto ${projectId}:`, bmsError)
+          projectErrors++
           continue
         }
 
-        console.log(`[AUTO_UPDATE] BMs encontrados: ${bms?.length || 0}`)
-
-        let projectNumbersUpdated = 0
-        let projectErrors = 0
-
-        // Para cada BM, buscar números ativos
-        for (const bm of bms || []) {
+        // Processar BMs em paralelo
+        const bmPromises = (bms || []).map(async (bm) => {
           const { data: numbers, error: numbersError } = await supabase
             .from('waba_whatsapp_numbers')
             .select('*')
@@ -163,31 +153,25 @@ Deno.serve(async (req) => {
             .eq('is_visible', true)
 
           if (numbersError) {
-            console.error(`[AUTO_UPDATE] Erro ao buscar números:`, numbersError)
-            totalErrors++
-            projectErrors++
-            continue
+            console.error(`[AUTO_UPDATE] Erro ao buscar números para BM ${bm.id}:`, numbersError)
+            return { updated: 0, errors: 1 }
           }
 
-          console.log(`[AUTO_UPDATE] Números no BM ${bm.id}: ${numbers?.length || 0}`)
+          let bmUpdated = 0
+          let bmErrors = 0
 
-          // Atualizar cada número
-          for (const num of numbers || []) {
+          // Atualizar cada número em paralelo (dentro do BM)
+          const numberPromises = (numbers || []).map(async (num) => {
             try {
-              // Chamar API do Meta
               const metaUrl = `https://graph.facebook.com/v21.0/${num.phone_number_id}?fields=quality_rating,messaging_limit_tier,verified_name,display_phone_number&access_token=${bm.access_token}`
               const metaResponse = await fetch(metaUrl)
               const metaData = await metaResponse.json()
 
-              // === TRATAMENTO DE ERRO: Não altera status, registra no histórico ===
               if (metaData.error) {
-                const errorMsg = metaData.error.message || 'Erro desconhecido na API Meta'
-                console.error(`[AUTO_UPDATE] Erro Meta para ${num.display_phone_number}:`, errorMsg)
-                
-                // Registra tentativa com erro no histórico (MANTÉM o status atual)
+                const errorMsg = metaData.error.message || 'Erro Meta API'
                 await supabase.from('waba_status_history').insert({
                   phone_number_id: num.id,
-                  quality_rating: num.quality_rating, // MANTÉM o status anterior
+                  quality_rating: num.quality_rating,
                   messaging_limit_tier: num.messaging_limit_tier,
                   changed_at: new Date().toISOString(),
                   is_error: true,
@@ -195,52 +179,17 @@ Deno.serve(async (req) => {
                   observation: `Erro na verificação automática: ${errorMsg}`,
                 })
                 
-                // Atualiza apenas last_checked (para saber que tentou verificar)
-                await supabase
-                  .from('waba_whatsapp_numbers')
-                  .update({ last_checked: new Date().toISOString() })
-                  .eq('id', num.id)
-                
-                totalErrors++
-                projectErrors++
-                continue
+                await supabase.from('waba_whatsapp_numbers').update({ last_checked: new Date().toISOString() }).eq('id', num.id)
+                return false
               }
 
-              // === VALIDAÇÃO: Verifica se quality_rating é válido ===
-              if (!metaData.quality_rating || !['GREEN', 'YELLOW', 'RED'].includes(metaData.quality_rating)) {
-                const errorMsg = `Resposta inválida da API: quality_rating = ${metaData.quality_rating || 'undefined'}`
-                console.error(`[AUTO_UPDATE] ${errorMsg} para ${num.display_phone_number}`)
-                
-                // Registra como erro no histórico (MANTÉM o status atual)
-                await supabase.from('waba_status_history').insert({
-                  phone_number_id: num.id,
-                  quality_rating: num.quality_rating, // MANTÉM o status anterior
-                  messaging_limit_tier: num.messaging_limit_tier,
-                  changed_at: new Date().toISOString(),
-                  is_error: true,
-                  error_message: errorMsg,
-                  observation: `Resposta inesperada da API Meta`,
-                })
-                
-                await supabase
-                  .from('waba_whatsapp_numbers')
-                  .update({ last_checked: new Date().toISOString() })
-                  .eq('id', num.id)
-                
-                totalErrors++
-                projectErrors++
-                continue
-              }
+              if (!metaData.quality_rating) return false
 
               const newQuality = mapQuality(metaData.quality_rating)
               const newLimit = mapLimit(metaData.messaging_limit_tier)
               const hasQualityChanged = num.quality_rating !== newQuality
-              const hasLimitChanged = num.messaging_limit_tier !== newLimit
 
-              console.log(`[AUTO_UPDATE] ${num.display_phone_number}: ${num.quality_rating} -> ${newQuality}`)
-
-              // Monta os dados de atualização
-              const updateData: Record<string, unknown> = {
+              const updateData: any = {
                 quality_rating: newQuality,
                 messaging_limit_tier: newLimit,
                 verified_name: metaData.verified_name || num.verified_name,
@@ -248,96 +197,86 @@ Deno.serve(async (req) => {
                 last_checked: new Date().toISOString(),
               }
 
-              // IMPORTANTE: Se a qualidade mudou, salva o status anterior e a data da mudança
               if (hasQualityChanged) {
                 updateData.previous_quality = num.quality_rating
                 updateData.last_status_change = new Date().toISOString()
               }
 
-              // Atualizar número
-              const { error: updateError } = await supabase
-                .from('waba_whatsapp_numbers')
-                .update(updateData)
-                .eq('id', num.id)
+              await supabase.from('waba_whatsapp_numbers').update(updateData).eq('id', num.id)
 
-              if (updateError) {
-                console.error(`[AUTO_UPDATE] Erro update:`, updateError)
-                totalErrors++
-                projectErrors++
-                continue
-              }
-
-              // Registrar no histórico - SEMPRE salva o status atual no momento da verificação
-              // O campo previous_quality no histórico guarda o status ANTES da mudança
-              const { error: historyError } = await supabase.from('waba_status_history').insert({
+              await supabase.from('waba_status_history').insert({
                 phone_number_id: num.id,
                 quality_rating: newQuality,
                 messaging_limit_tier: newLimit,
                 previous_quality: hasQualityChanged ? num.quality_rating : null,
                 changed_at: new Date().toISOString(),
                 observation: hasQualityChanged 
-                  ? `Status alterado de ${num.quality_rating} para ${newQuality} (verificação automática)` 
+                  ? `Status alterado de ${num.quality_rating} para ${newQuality}` 
                   : 'Verificação automática',
               })
 
-              if (historyError) {
-                console.error(`[AUTO_UPDATE] Erro ao inserir histórico:`, historyError)
-                totalErrors++
-                projectErrors++
-              }
-
-              // Se mudou qualidade, registrar notificação
               if (hasQualityChanged) {
-                const qualityValue: Record<string, number> = { HIGH: 3, MEDIUM: 2, LOW: 1 }
-                const direction = qualityValue[newQuality] > qualityValue[num.quality_rating] ? 'up' : 'down'
-
-                const { error: notifError } = await supabase.from('waba_status_change_notifications').insert({
+                const qualityValue: any = { HIGH: 3, MEDIUM: 2, LOW: 1 }
+                const direction = qualityValue[newQuality] > (qualityValue[num.quality_rating] || 0) ? 'up' : 'down'
+                await supabase.from('waba_status_change_notifications').insert({
                   phone_number_id: num.id,
                   project_id: projectId,
                   previous_quality: num.quality_rating,
                   new_quality: newQuality,
-                  direction: direction,
+                  direction,
                   changed_at: new Date().toISOString(),
                 })
-
-                if (notifError) {
-                  console.error(`[AUTO_UPDATE] Erro ao inserir notificação:`, notifError)
-                }
               }
 
-              totalUpdated++
-              projectNumbersUpdated++
+              return true
             } catch (err) {
-              console.error(`[AUTO_UPDATE] Erro:`, err)
-              totalErrors++
-              projectErrors++
+              console.error(`[AUTO_UPDATE] Erro no número ${num.id}:`, err)
+              return false
             }
-          }
+          })
+
+          const results = await Promise.all(numberPromises)
+          bmUpdated = results.filter(Boolean).length
+          bmErrors = numbers.length - bmUpdated
+
+          return { updated: bmUpdated, errors: bmErrors }
+        })
+
+        const bmResults = await Promise.all(bmPromises)
+        for (const res of bmResults) {
+          projectNumbersUpdated += res.updated
+          projectErrors += res.errors
         }
 
-        // Atualiza a execução com os contadores
-        if (!execError || execError.message?.includes('does not exist')) {
-          try {
-            await supabase
-              .from('waba_project_schedule_executions')
-              .update({
-                numbers_checked: projectNumbersUpdated + projectErrors,
-                numbers_updated: projectNumbersUpdated,
-                errors: projectErrors,
-              })
-              .eq('project_id', projectId)
-              .eq('schedule_time', scheduleTime)
-              .eq('execution_date', brasiliaDate)
-          } catch (e) {
-            // Ignora erro se tabela não existe
-          }
+        // Atualiza a execução
+        try {
+          await supabase
+            .from('waba_project_schedule_executions')
+            .update({
+              numbers_checked: projectNumbersUpdated + projectErrors,
+              numbers_updated: projectNumbersUpdated,
+              errors: projectErrors,
+            })
+            .eq('project_id', projectId)
+            .eq('schedule_time', scheduleTime)
+            .eq('execution_date', brasiliaDate)
+        } catch (e) {
+          // Ignora
         }
-
+        
         executedProjects.push(projectId)
       }
+      
+      return { updated: projectNumbersUpdated, errors: projectErrors }
+    })
+
+    const allResults = await Promise.all(projectPromises)
+    for (const res of allResults) {
+      totalUpdated += res.updated
+      totalErrors += res.errors
     }
 
-    // Registrar execução na tabela de logs global
+    // Registrar log global
     try {
       await supabase.from('waba_auto_update_logs').insert({
         executed_at: new Date().toISOString(),
@@ -348,29 +287,22 @@ Deno.serve(async (req) => {
         errors: totalErrors,
       })
     } catch (logError) {
-      console.log('[AUTO_UPDATE] Erro ao gravar log global:', logError)
+      console.log('[AUTO_UPDATE] Erro log global:', logError)
     }
-
-    console.log(`[AUTO_UPDATE] Finalizado - ${totalUpdated} atualizados, ${totalErrors} erros`)
-    console.log('[AUTO_UPDATE] ========================================')
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        brasiliaTime,
-        totalSchedules: allSchedules.length,
-        schedulesFound: matchingSchedules.length,
-        projectsChecked: executedProjects.length,
         numbersUpdated: totalUpdated,
-        errors: totalErrors
+        errors: totalErrors,
+        projectsChecked: executedProjects.length
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido'
-    console.error('[AUTO_UPDATE] Erro geral:', error)
+  } catch (error: any) {
+    console.error('[AUTO_UPDATE] Erro fatal:', error)
     return new Response(
-      JSON.stringify({ success: false, error: errorMessage }),
+      JSON.stringify({ success: false, error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
