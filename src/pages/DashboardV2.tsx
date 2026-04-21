@@ -29,6 +29,7 @@ const DashboardV2 = () => {
   const isMobile = useIsMobile();
 
   const projectIds = projects.map(p => p.id);
+  const userNumbers = allNumbers.filter(n => projectIds.includes(n.projectId));
   const { data: recentChanges = [] } = useRecentStatusChanges(projectIds);
 
   if (loadingProjects || loadingNumbers) {
@@ -58,10 +59,10 @@ const DashboardV2 = () => {
         </div>
         
         <div className="flex items-center gap-3">
-          <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20">
-            {allNumbers.length} Números
+          <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 font-bold">
+            {userNumbers.length} Números
           </Badge>
-          <Badge variant="outline" className="bg-secondary/5 text-secondary border-secondary/20">
+          <Badge variant="outline" className="bg-secondary/5 text-secondary border-secondary/20 font-bold">
             {projects.length} Projetos
           </Badge>
         </div>
@@ -71,7 +72,7 @@ const DashboardV2 = () => {
         {/* Main Content Area */}
         <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6">
           {projects.map((project) => {
-            const projectNumbers = allNumbers.filter(n => n.projectId === project.id);
+            const projectNumbers = userNumbers.filter(n => n.projectId === project.id);
             if (projectNumbers.length === 0) return null;
 
             return (
