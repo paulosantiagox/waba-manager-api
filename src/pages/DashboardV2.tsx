@@ -157,11 +157,6 @@ const DashboardV2 = () => {
                           </div>
                           <div className="flex flex-col items-end gap-1">
                             <QualityBadge rating={number.qualityRating} size="sm" />
-                            {number.previousQuality && number.previousQuality !== number.qualityRating && (
-                                <span className="text-[8px] text-muted-foreground line-through decoration-destructive/40 opacity-70">
-                                  {number.previousQuality === 'HIGH' ? 'Alta' : number.previousQuality === 'MEDIUM' ? 'Média' : 'Baixa'}
-                                </span>
-                            )}
                           </div>
                         </div>
                         <div className="flex items-center justify-between text-[9px] text-muted-foreground mt-2 mb-1">
