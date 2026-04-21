@@ -61,9 +61,10 @@ const DashboardV2 = () => {
   };
 
   const getDaysInStatus = (lastChangeDate?: string) => {
-    if (!lastChangeDate) return null;
+    if (!lastChangeDate) return "Sem histórico";
     const days = differenceInDays(new Date(), new Date(lastChangeDate));
-    return days > 0 ? `+${days}d` : 'Hoje';
+    if (days === 0) return "Zero";
+    return `+${days}d`;
   };
 
   if (loadingProjects || loadingNumbers) {
