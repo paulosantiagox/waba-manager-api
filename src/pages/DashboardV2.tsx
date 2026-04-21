@@ -249,45 +249,33 @@ const DashboardV2 = () => {
       <main className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         {/* Main Content Area */}
         <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6">
-          {sortMode !== 'none' ? (
-            <section className="space-y-3">
-              <div className="flex items-center justify-between px-1">
-                <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                  <ListFilter className="w-4 h-4 text-primary" />
-                  Organizado por {sortMode === 'priority' ? 'Prioridade' : 'Mais dias em Alta'}
-                  <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded ml-2 normal-case font-medium">
-                    {userNumbers.length}
-                  </span>
-                </h2>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
-                {userNumbers.map(renderNumberCard)}
-              </div>
-            </section>
-          ) : (
-            projects.map((project) => {
-              const projectNumbers = userNumbers.filter(n => n.projectId === project.id);
-              if (projectNumbers.length === 0) return null;
+          {projects.map((project) => {
+            const projectNumbers = userNumbers.filter(n => n.projectId === project.id);
+            if (projectNumbers.length === 0) return null;
 
-              return (
-                <section key={project.id} className="space-y-3">
-                  <div className="flex items-center justify-between px-1">
-                    <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                      <ChevronRight className="w-4 h-4 text-primary" />
-                      {project.name}
-                      <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded ml-2 normal-case font-medium">
-                        {projectNumbers.length}
+            return (
+              <section key={project.id} className="space-y-3">
+                <div className="flex items-center justify-between px-1">
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                    <ChevronRight className="w-4 h-4 text-primary" />
+                    {project.name}
+                    <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded ml-2 normal-case font-medium">
+                      {projectNumbers.length}
+                    </span>
+                    {sortMode !== 'none' && (
+                      <span className="text-[10px] text-primary/70 ml-auto font-medium lowercase">
+                        ordenado por {sortMode === 'priority' ? 'prioridade' : 'dias em alta'}
                       </span>
-                    </h2>
-                  </div>
+                    )}
+                  </h2>
+                </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
-                    {projectNumbers.map(renderNumberCard)}
-                  </div>
-                </section>
-              );
-            })
-          )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
+                  {projectNumbers.map(renderNumberCard)}
+                </div>
+              </section>
+            );
+          })}
         </div>
 
         {/* Right Sidebar - Recent History */}
