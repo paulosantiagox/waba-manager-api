@@ -60,6 +60,7 @@ Deno.serve(async (req) => {
     console.log(`[AUTO_UPDATE] Data de Brasília: ${brasiliaDate}`)
 
     let matchingSchedules = []
+    let allSchedules = []
 
     if (manual) {
       console.log('[AUTO_UPDATE] Modo MANUAL: Buscando todos os projetos ativos...')
@@ -79,8 +80,9 @@ Deno.serve(async (req) => {
         .select('*')
 
       if (scheduleError) throw scheduleError
+      allSchedules = schedules || []
 
-      matchingSchedules = (schedules || []).filter(s => {
+      matchingSchedules = allSchedules.filter(s => {
         const [h, m] = s.time.split(':').map(Number)
         const scheduledMinutes = h * 60 + m
         const diff = currentTotalMinutes - scheduledMinutes
@@ -356,7 +358,7 @@ Deno.serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         brasiliaTime,
-        totalSchedules: schedules?.length || 0,
+        totalSchedules: allSchedules.length,
         schedulesFound: matchingSchedules.length,
         projectsChecked: executedProjects.length,
         numbersUpdated: totalUpdated,
