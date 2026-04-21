@@ -302,8 +302,15 @@ Deno.serve(async (req) => {
   } catch (error: any) {
     console.error('[AUTO_UPDATE] Erro fatal:', error)
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ 
+        success: false, 
+        error: error.message || 'Erro interno no servidor',
+        stack: error.stack
+      }),
+      { 
+        status: 200, // Return 200 so the client can see the JSON error
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
     )
   }
 })
