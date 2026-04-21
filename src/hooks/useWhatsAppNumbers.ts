@@ -59,7 +59,7 @@ export function useWhatsAppNumbers(projectId?: string) {
         verifiedName: n.verified_name,
         customName: n.custom_name || undefined,
         qualityRating: n.quality_rating as QualityRating,
-        messagingLimitTier: n.messaging_limit_tier,
+        messaging_limit_tier: n.messaging_limit_tier,
         photo: n.photo || undefined,
         wabaId: n.waba_id,
         isVisible: n.is_visible,
@@ -76,6 +76,31 @@ export function useWhatsAppNumbers(projectId?: string) {
 }
 
 export function useAllWhatsAppNumbers() {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('whatsapp-numbers-all-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'waba_whatsapp_numbers',
+        },
+        () => {
+          queryClient.invalidateQueries({ 
+            queryKey: ['whatsapp-numbers-all'] 
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
   return useQuery({
     queryKey: ['whatsapp-numbers-all'],
     queryFn: async () => {
@@ -95,7 +120,7 @@ export function useAllWhatsAppNumbers() {
         verifiedName: n.verified_name,
         customName: n.custom_name || undefined,
         qualityRating: n.quality_rating as QualityRating,
-        messagingLimitTier: n.messaging_limit_tier,
+        messaging_limit_tier: n.messaging_limit_tier,
         photo: n.photo || undefined,
         wabaId: n.waba_id,
         isVisible: n.is_visible,
@@ -189,6 +214,7 @@ export function useUpdateWhatsAppNumber() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['whatsapp-numbers'] });
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-numbers-all'] });
     },
     onError: (error) => {
       console.error('[WHATSAPP] Erro ao atualizar número:', error);
