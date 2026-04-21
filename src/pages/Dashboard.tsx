@@ -143,6 +143,7 @@ const UserDashboard = () => {
       if (error) throw error;
       
       toast.success(`${data.numbersUpdated} números atualizados com sucesso!`);
+      refetchNumbers();
       refetchChanges();
     } catch (error) {
       console.error('Error updating status:', error);
