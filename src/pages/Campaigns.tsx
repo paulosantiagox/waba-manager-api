@@ -113,6 +113,24 @@ const Campaigns = () => {
   const userNumbers = allNumbers.filter(n => projects.some(p => p.id === n.projectId));
   const [campaignProjectId, setCampaignProjectId] = useState<string>(activeCampaign?.projectId || projects[0]?.id || '');
 
+  const groupedCampaigns = useMemo(() => {
+    const groups: Record<string, Campaign[]> = {};
+    
+    sortedCampaigns.forEach(campaign => {
+      const pId = campaign.projectId || 'unassigned';
+      if (!groups[pId]) groups[pId] = [];
+      groups[pId].push(campaign);
+    });
+
+    return Object.entries(groups).sort(([aId], [bId]) => {
+      if (aId === 'unassigned') return 1;
+      if (bId === 'unassigned') return -1;
+      const projectA = projects.find(p => p.id === aId);
+      const projectB = projects.find(p => p.id === bId);
+      return (projectA?.name || '').localeCompare(projectB?.name || '');
+    });
+  }, [sortedCampaigns, projects]);
+
   const campaignBroadcasts = useMemo(() => {
     let result = broadcasts;
     if (typeFilter !== 'all') result = result.filter(b => b.actionTypeId === typeFilter);
