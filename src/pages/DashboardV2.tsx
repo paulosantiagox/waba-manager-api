@@ -25,6 +25,7 @@ import { format, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
+import { supabase as lovableSupabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import StatusHistoryModal from '@/components/modals/StatusHistoryModal';
 
@@ -44,7 +45,7 @@ const DashboardV2 = () => {
   const handleUpdateAll = async () => {
     setIsUpdating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('auto-update-status', {
+      const { data, error } = await lovableSupabase.functions.invoke('auto-update-status', {
         body: { manual: true }
       });
 
