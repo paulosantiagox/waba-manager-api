@@ -246,9 +246,9 @@ const DashboardV2 = () => {
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
+      <main className="flex-1 flex flex-col lg:flex-row lg:overflow-hidden min-h-0">
         {/* Main Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6">
+        <div className="lg:flex-1 lg:overflow-y-auto p-4 lg:p-6 space-y-6">
           {projects.map((project) => {
             const projectNumbers = userNumbers.filter(n => n.projectId === project.id);
             if (projectNumbers.length === 0) return null;
