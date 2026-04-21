@@ -33,7 +33,7 @@ export function useRecentStatusChanges(projectIds?: string[]) {
         `)
         .not('previous_quality', 'is', null)
         .order('changed_at', { ascending: false })
-        .limit(50);
+        .limit(200);
 
       if (historyError) throw historyError;
       if (!historyData || historyData.length === 0) return [];
