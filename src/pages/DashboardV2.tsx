@@ -143,7 +143,7 @@ const DashboardV2 = () => {
                             </div>
                             <div className="truncate">
                               <div className="flex items-center gap-1">
-                                <p className="text-xs font-bold truncate leading-tight">
+                                <p className="text-xs font-bold truncate leading-tight bg-primary/5 text-primary px-1.5 py-0.5 rounded border border-primary/10">
                                   {number.customName || number.verifiedName}
                                 </p>
                                 {number.lastStatusChange && (
