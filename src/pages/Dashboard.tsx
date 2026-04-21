@@ -307,11 +307,20 @@ const Dashboard = () => {
 
   return (
     <DashboardLayout>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-foreground">Olá, {user?.name?.split(' ')[0]} 👋</h1>
-        <p className="text-muted-foreground mt-1">
-          {isMaster ? 'Visão geral do sistema e gestão de usuários' : 'Monitore seus projetos e números WhatsApp'}
-        </p>
+      <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Olá, {user?.name?.split(' ')[0]} 👋</h1>
+          <p className="text-muted-foreground mt-1">
+            {isMaster ? 'Visão geral do sistema e gestão de usuários' : 'Monitore seus projetos e números WhatsApp'}
+          </p>
+        </div>
+        <Link to="/dashboard-v2" target="_blank">
+          <Button variant="outline" className="gap-2 group border-primary/20 hover:border-primary/50 transition-all">
+            <Maximize2 className="w-4 h-4 text-primary" />
+            <span>Abrir Dashboard V2</span>
+            <ArrowRight className="w-4 h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+          </Button>
+        </Link>
       </div>
       {isMaster ? <MasterDashboard /> : <UserDashboard />}
     </DashboardLayout>
