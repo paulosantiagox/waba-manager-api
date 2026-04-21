@@ -432,6 +432,15 @@ const ProjectDetail = () => {
                 );
               })()}
             </div>
+            
+            {/* Indicador de dias no status atual com ícone de relógio */}
+            {daysInCurrentStatus !== null && daysInCurrentStatus >= 0 && (
+              <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-1">
+                <Clock className="w-3 h-3" />
+                <span>+{daysInCurrentStatus} dias em {number.qualityRating === 'HIGH' ? 'Alta' : number.qualityRating === 'MEDIUM' ? 'Média' : 'Baixa'}</span>
+              </div>
+            )}
+
             {/* Status anterior e data - calculado do histórico */}
             {statusStartDate && (
               <div className="text-[10px] text-muted-foreground mt-0.5">
