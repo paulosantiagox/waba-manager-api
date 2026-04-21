@@ -71,24 +71,24 @@ const MasterDashboard = () => {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
                   API Gateway
                 </div>
-                <Badge variant="outline" className="text-[10px] uppercase font-bold text-emerald-500 border-emerald-500/20 bg-emerald-500/5">Online</Badge>
+                <Badge variant="outline" className="text-[10px] uppercase font-bold text-success border-success/20 bg-success/5">Online</Badge>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
                   Database
                 </div>
-                <Badge variant="outline" className="text-[10px] uppercase font-bold text-emerald-500 border-emerald-500/20 bg-emerald-500/5">Online</Badge>
+                <Badge variant="outline" className="text-[10px] uppercase font-bold text-success border-success/20 bg-success/5">Online</Badge>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
                   WhatsApp Scraper
                 </div>
-                <Badge variant="outline" className="text-[10px] uppercase font-bold text-emerald-500 border-emerald-500/20 bg-emerald-500/5">Online</Badge>
+                <Badge variant="outline" className="text-[10px] uppercase font-bold text-success border-success/20 bg-success/5">Online</Badge>
               </div>
             </div>
           </CardContent>
@@ -109,9 +109,9 @@ const getQualityLabel = (quality: string) => {
 
 const getQualityColor = (quality: string) => {
   switch (quality) {
-    case 'HIGH': return 'text-emerald-600';
-    case 'MEDIUM': return 'text-amber-500';
-    case 'LOW': return 'text-red-500';
+    case 'HIGH': return 'text-success';
+    case 'MEDIUM': return 'text-warning';
+    case 'LOW': return 'text-destructive';
     default: return 'text-muted-foreground';
   }
 };
