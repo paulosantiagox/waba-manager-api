@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProjects } from '@/hooks/useProjects';
 import { useAllWhatsAppNumbers } from '@/hooks/useWhatsAppNumbers';
@@ -11,16 +12,21 @@ import {
   Phone, 
   Loader2,
   Maximize2,
-  ChevronRight
+  ChevronRight,
+  RefreshCw,
+  Clock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import QualityBadge from '@/components/dashboard/QualityBadge';
 import { Link } from 'react-router-dom';
-import { format } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
+import StatusHistoryModal from '@/components/modals/StatusHistoryModal';
 
 const DashboardV2 = () => {
   const { user } = useAuth();
