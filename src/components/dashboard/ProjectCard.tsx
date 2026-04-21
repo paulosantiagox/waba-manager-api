@@ -135,7 +135,7 @@ const ProjectCard = ({
               </span>
               <span className="flex items-center gap-1.5">
                 <Calendar className="w-4 h-4" />
-                {format(new Date(project.updatedAt), "dd/MM", { locale: ptBR })}
+                {format(new Date(project.updatedAt), "dd/MM HH:mm", { locale: ptBR })}
               </span>
             </div>
 
