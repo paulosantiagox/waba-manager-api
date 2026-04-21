@@ -466,7 +466,14 @@ const ProjectDetail = () => {
               </div>
             )}
           </TableCell>
-          <TableCell><span className="text-sm">{number.messagingLimitTier}/dia</span></TableCell>
+          <TableCell>
+            <span className="text-sm">
+              {(!number.messagingLimitTier || number.messagingLimitTier === 'Não definido')
+                ? (daysInCurrentStatus !== null ? `Há ${daysInCurrentStatus}d` : '-')
+                : `${number.messagingLimitTier}/dia`
+              }
+            </span>
+          </TableCell>
           <TableCell>
             {bm ? (
               <div className="text-xs space-y-1">

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { StatusHistory, QualityRating } from '@/types';
 import { Card } from '@/components/ui/card';
+import QualityBadge from '@/components/dashboard/QualityBadge';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronRight, TrendingUp, TrendingDown, Minus, Clock, Calendar } from 'lucide-react';
 import { format, isToday, isYesterday } from 'date-fns';
@@ -22,16 +23,7 @@ interface DailyHistoryItemProps {
 }
 
 const getStatusBadge = (rating: QualityRating) => {
-  switch (rating) {
-    case 'HIGH':
-      return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-success/20 text-success">🟢 Alta</span>;
-    case 'MEDIUM':
-      return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-warning/20 text-warning">🟡 Média</span>;
-    case 'LOW':
-      return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-destructive/20 text-destructive">🔴 Baixa</span>;
-    default:
-      return <span className="text-muted-foreground">-</span>;
-  }
+  return <QualityBadge rating={rating} size="sm" />;
 };
 
 const getStatusChangeIndicator = (dayGroup: DailyHistoryGroup) => {
