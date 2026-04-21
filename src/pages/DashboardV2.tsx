@@ -171,7 +171,12 @@ const DashboardV2 = () => {
                         </div>
                         
                         <div className="flex items-center justify-between text-[10px] pt-2 border-t border-border/50">
-                          <span className="text-muted-foreground">Tier {number.messagingLimitTier?.replace('TIER_', '')}</span>
+                          <span className="text-muted-foreground">
+                            {number.messagingLimitTier 
+                              ? `Tier ${number.messagingLimitTier.replace('TIER_', '')}` 
+                              : number.lastStatusChange ? getDaysInStatus(number.lastStatusChange) : 'Tier --'
+                            }
+                          </span>
                           <span className="text-muted-foreground">
                             {number.lastChecked ? format(new Date(number.lastChecked), "HH:mm") : '--:--'}
                           </span>
@@ -225,22 +230,11 @@ const DashboardV2 = () => {
                     </div>
                     <p className="text-[11px] font-bold leading-tight group-hover:text-primary transition-colors">{change.numberName}</p>
                     <div className="flex items-center gap-1">
-                      <span className={cn(
-                        "text-[9px] opacity-70 line-through decoration-muted-foreground",
-                        change.previousQuality === 'HIGH' ? "text-success" : 
-                        change.previousQuality === 'MEDIUM' ? "text-warning" : "text-destructive"
-                      )}>
-                        {change.previousQuality === 'HIGH' ? 'Alta' : change.previousQuality === 'MEDIUM' ? 'Média' : 'Baixa'}
-                      </span>
+                      <div className="opacity-50 scale-90 origin-left grayscale">
+                        <QualityBadge rating={change.previousQuality} size="sm" />
+                      </div>
                       <ChevronRight className="w-2 h-2 text-muted-foreground" />
-                      <QualityBadge rating={change.currentQuality} size="sm" showLabel={false} />
-                      <span className={cn(
-                        "text-[10px] font-bold",
-                        change.currentQuality === 'HIGH' ? "text-success" : 
-                        change.currentQuality === 'MEDIUM' ? "text-warning" : "text-destructive"
-                      )}>
-                        {change.currentQuality === 'HIGH' ? 'Alta' : change.currentQuality === 'MEDIUM' ? 'Média' : 'Baixa'}
-                      </span>
+                      <QualityBadge rating={change.currentQuality} size="sm" />
                     </div>
                   </div>
                 </div>
