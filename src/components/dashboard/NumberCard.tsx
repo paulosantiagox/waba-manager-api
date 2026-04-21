@@ -51,15 +51,23 @@ const NumberCard = ({ number, onViewHistory, onEdit, onDelete, onToggleVisibilit
       <CardContent className="p-5">
         <div className="flex items-start gap-4">
           {/* Avatar/Photo */}
-          <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-            {number.photo ? (
-              <img 
-                src={number.photo} 
-                alt={number.verifiedName} 
-                className="w-full h-full object-cover rounded-xl"
-              />
-            ) : (
-              <Phone className="w-6 h-6 text-primary" />
+          <div className="relative">
+            <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              {number.photo ? (
+                <img 
+                  src={number.photo} 
+                  alt={number.verifiedName} 
+                  className="w-full h-full object-cover rounded-xl"
+                />
+              ) : (
+                <Phone className="w-6 h-6 text-primary" />
+              )}
+            </div>
+            {number.isVisible && (
+              <div className="absolute -top-1 -right-1 flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-success"></span>
+              </div>
             )}
           </div>
 
