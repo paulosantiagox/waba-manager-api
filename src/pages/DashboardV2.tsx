@@ -11,29 +11,29 @@ import {
   TrendingDown, 
   Phone, 
   Loader2,
-  Maximize2,
   ChevronRight,
   RefreshCw,
   Clock,
-  Filter,
-  CheckCircle2,
-  AlertCircle,
-  XCircle,
-  ArrowUpDown,
   ListFilter
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import QualityBadge from '@/components/dashboard/QualityBadge';
 import { Link } from 'react-router-dom';
 import { format, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/lib/supabase';
 import { supabase as lovableSupabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import StatusHistoryModal from '@/components/modals/StatusHistoryModal';
+
+const PulsingDot = () => (
+  <span className="relative flex h-2 w-2">
+    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+  </span>
+);
 
 const DashboardV2 = () => {
   const { user } = useAuth();
@@ -59,7 +59,8 @@ const DashboardV2 = () => {
   };
 
   const projectIds = projects.map(p => p.id);
-  // MOSTRAR APENAS NÚMEROS ATIVOS (isVisible)
+  
+  // NÚMEROS FILTRADOS E ORDENADOS
   let userNumbers = allNumbers.filter(n => projectIds.includes(n.projectId) && n.isVisible);
 
   if (sortMode === 'priority') {
@@ -71,7 +72,6 @@ const DashboardV2 = () => {
     });
   } else if (sortMode === 'days') {
     userNumbers = [...userNumbers].sort((a, b) => {
-      // Prioritize High quality, then by days
       const qA = a.qualityRating === 'HIGH' ? 1 : 0;
       const qB = b.qualityRating === 'HIGH' ? 1 : 0;
       if (qA !== qB) return qB - qA;
@@ -81,13 +81,6 @@ const DashboardV2 = () => {
 
   const { data: recentChanges = [], refetch: refetchChanges } = useRecentStatusChanges(projectIds);
 
-  const PulsingDot = () => (
-    <span className="relative flex h-2 w-2">
-      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
-      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-    </span>
-  );
-
   const handleUpdateAll = async () => {
     setIsUpdating(true);
     try {
@@ -95,20 +88,13 @@ const DashboardV2 = () => {
         body: { manual: true }
       });
 
-      if (error) {
-        console.error('Functions error:', error);
-        throw error;
-      }
-
-      if (!data || data.success === false) {
-        throw new Error(data?.error || 'Erro ao processar atualização');
-      }
+      if (error) throw error;
+      if (!data || data.success === false) throw new Error(data?.error || 'Erro ao processar atualização');
       
       toast.success(`${data.numbersUpdated} números atualizados com sucesso!`);
       refetchNumbers();
       refetchChanges();
     } catch (error: any) {
-      console.error('Error updating status:', error);
       toast.error(`Erro ao atualizar números: ${error.message || 'Erro desconhecido'}`);
     } finally {
       setIsUpdating(false);
@@ -120,6 +106,73 @@ const DashboardV2 = () => {
     const days = differenceInDays(new Date(), new Date(lastChangeDate));
     return `${days}d`;
   };
+
+  const renderNumberCard = (number: any) => (
+    <Card 
+      key={number.id} 
+      className="overflow-hidden border-none shadow-sm hover:shadow-md transition-shadow group cursor-pointer"
+      onClick={() => setSelectedNumberId(number.id)}
+    >
+      <CardContent className="p-3">
+        <div className="flex items-start justify-between mb-2">
+          <div className="flex items-center gap-2 overflow-hidden">
+            <div className="bg-primary/10 p-1.5 rounded-lg group-hover:bg-primary/20 transition-colors shrink-0">
+              <Phone className="w-3.5 h-3.5 text-primary" />
+            </div>
+            <div>
+              <div className="flex items-center gap-1">
+                <p className="text-xs font-bold leading-tight bg-primary/5 text-primary px-1.5 py-0.5 rounded border border-primary/10">
+                  {number.customName || number.verifiedName}
+                </p>
+              </div>
+              <p className="text-[10px] text-muted-foreground truncate">
+                {number.displayPhoneNumber}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            <QualityBadge rating={number.qualityRating} size="sm" />
+          </div>
+        </div>
+        <div className="flex items-center justify-between text-[9px] text-muted-foreground mt-2 mb-1">
+          <div className="flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            <span>
+              {getDaysInStatus(number.lastStatusChange)} em {number.qualityRating === 'HIGH' ? 'Alta' : number.qualityRating === 'MEDIUM' ? 'Média' : 'Baixa'}
+            </span>
+          </div>
+          <span className="shrink-0">
+            {number.lastChecked ? format(new Date(number.lastChecked), "dd/MM HH:mm") : '--/-- --:--'}
+          </span>
+        </div>
+
+        <div className="pt-2 border-t border-border/50 flex items-center justify-between">
+          <div className="flex flex-wrap gap-x-2 text-[8px] text-muted-foreground uppercase font-medium">
+            {number.previousQuality ? (
+              <span>
+                Antes: {number.previousQuality === 'HIGH' ? 'Alta' : number.previousQuality === 'MEDIUM' ? 'Média' : 'Baixa'}•{number.lastStatusChange ? format(new Date(number.lastStatusChange), "dd/MM/yy") : '--/--/--'}
+              </span>
+            ) : (
+              <span>
+                {number.qualityRating === 'HIGH' ? 'Alta' : number.qualityRating === 'MEDIUM' ? 'Média' : 'Baixa'} Desde: {number.lastStatusChange ? format(new Date(number.lastStatusChange), "dd/MM/yy") : '--/--/--'}
+              </span>
+            )}
+          </div>
+          <div className="shrink-0 ml-1">
+            {number.previousQuality ? (
+              getQualityValue(number.qualityRating) >= getQualityValue(number.previousQuality) ? (
+                <TrendingUp className="w-5 h-5 text-success" />
+              ) : (
+                <TrendingDown className="w-5 h-5 text-destructive" />
+              )
+            ) : (
+              <TrendingUp className="w-5 h-5 text-success" />
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   if (loadingProjects || loadingNumbers) {
     return (
@@ -208,11 +261,7 @@ const DashboardV2 = () => {
                 </h2>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
-                {userNumbers.map((number) => {
-...
-keep existing code
-...
-                })}
+                {userNumbers.map(renderNumberCard)}
               </div>
             </section>
           ) : (
@@ -233,11 +282,7 @@ keep existing code
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
-                    {projectNumbers.map((number) => (
-...
-keep existing code
-...
-                    ))}
+                    {projectNumbers.map(renderNumberCard)}
                   </div>
                 </section>
               );
