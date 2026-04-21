@@ -117,7 +117,7 @@ const DailyHistoryItem = ({ dayGroup }: DailyHistoryItemProps) => {
             <Calendar className="w-4 h-4 text-muted-foreground" />
             <div>
               <p className="font-medium text-sm">{dateFormatted}</p>
-              <p className="text-xs text-muted-foreground capitalize">{dateLabel}</p>
+              <p className="text-sm text-muted-foreground capitalize">{dateLabel}</p>
             </div>
           </div>
           
@@ -133,7 +133,7 @@ const DailyHistoryItem = ({ dayGroup }: DailyHistoryItemProps) => {
         </div>
         
         {/* Contagem de Verificações */}
-        <div className="flex items-center gap-2 text-muted-foreground text-xs shrink-0">
+        <div className="flex items-center gap-2 text-muted-foreground text-sm shrink-0">
           <Clock className="w-3.5 h-3.5" />
           <span>{dayGroup.verificationCount} {dayGroup.verificationCount === 1 ? 'verificação' : 'verificações'}</span>
         </div>
@@ -157,7 +157,7 @@ const DailyHistoryItem = ({ dayGroup }: DailyHistoryItemProps) => {
                 
                 {/* Status Anterior (se mudou) */}
                 {entry.previousQuality && (
-                  <div className="flex items-center gap-2 text-xs">
+                  <div className="flex items-center gap-2 text-sm">
                     <span className="text-muted-foreground">de</span>
                     {getStatusBadge(entry.previousQuality)}
                   </div>
@@ -170,7 +170,7 @@ const DailyHistoryItem = ({ dayGroup }: DailyHistoryItemProps) => {
                 
                 {/* Observação */}
                 {entry.observation && (
-                  <div className="flex-1 text-xs text-muted-foreground truncate" title={entry.observation}>
+                  <div className="flex-1 text-sm text-muted-foreground truncate" title={entry.observation}>
                     {entry.observation}
                   </div>
                 )}

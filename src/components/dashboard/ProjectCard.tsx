@@ -143,17 +143,17 @@ const ProjectCard = ({
             {numbers.length > 0 && (
               <div className="flex items-center gap-2 mt-3">
                 {statusCounts.high > 0 && (
-                  <span className="text-xs px-2 py-1 rounded-full bg-success/10 text-success font-medium">
+                  <span className="text-sm px-2 py-1 rounded-full bg-success/10 text-success font-medium">
                     🟢 {statusCounts.high}
                   </span>
                 )}
                 {statusCounts.medium > 0 && (
-                  <span className="text-xs px-2 py-1 rounded-full bg-warning/10 text-warning font-medium">
+                  <span className="text-sm px-2 py-1 rounded-full bg-warning/10 text-warning font-medium">
                     🟡 {statusCounts.medium}
                   </span>
                 )}
                 {statusCounts.low > 0 && (
-                  <span className="text-xs px-2 py-1 rounded-full bg-destructive/10 text-destructive font-medium">
+                  <span className="text-sm px-2 py-1 rounded-full bg-destructive/10 text-destructive font-medium">
                     🔴 {statusCounts.low}
                   </span>
                 )}
