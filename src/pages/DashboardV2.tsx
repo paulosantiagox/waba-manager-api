@@ -183,7 +183,7 @@ const DashboardV2 = () => {
   }
 
   return (
-    <div className="h-screen bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden">
+    <div className="min-h-screen lg:h-screen bg-slate-50 dark:bg-slate-950 flex flex-col lg:overflow-hidden">
       {/* Header */}
       <header className="sticky top-0 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-border px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -246,9 +246,9 @@ const DashboardV2 = () => {
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
+      <main className="flex-1 flex flex-col lg:flex-row lg:overflow-hidden min-h-0">
         {/* Main Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6">
+        <div className="lg:flex-1 lg:overflow-y-auto p-4 lg:p-6 space-y-6">
           {projects.map((project) => {
             const projectNumbers = userNumbers.filter(n => n.projectId === project.id);
             if (projectNumbers.length === 0) return null;
@@ -279,7 +279,7 @@ const DashboardV2 = () => {
         </div>
 
         {/* Right Sidebar - Recent History */}
-        <aside className="w-full lg:w-72 border-l border-border bg-white dark:bg-slate-900 flex flex-col shrink-0 min-h-0">
+        <aside className="w-full lg:w-72 border-t lg:border-t-0 lg:border-l border-border bg-white dark:bg-slate-900 flex flex-col shrink-0 min-h-0">
           <div className="p-3 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Activity className="w-4 h-4 text-primary" />
@@ -294,7 +294,7 @@ const DashboardV2 = () => {
               <RefreshCw className="w-3.5 h-3.5" />
             </Button>
           </div>
-          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+          <div className="lg:flex-1 lg:overflow-y-auto p-3 space-y-2">
             {recentChanges.length > 0 ? (
               recentChanges.map((change) => (
                 <div 
