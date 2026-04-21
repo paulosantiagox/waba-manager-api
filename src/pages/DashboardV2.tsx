@@ -246,9 +246,9 @@ const DashboardV2 = () => {
       </main>
 
       <StatusHistoryModal 
-        isOpen={!!selectedNumberId}
-        onClose={() => setSelectedNumberId(null)}
-        phoneNumberId={selectedNumberId || ''}
+        number={allNumbers.find(n => n.id === selectedNumberId) || null}
+        open={!!selectedNumberId}
+        onOpenChange={(open) => !open && setSelectedNumberId(null)}
       />
     </div>
   );
