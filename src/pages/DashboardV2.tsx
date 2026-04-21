@@ -130,7 +130,11 @@ const DashboardV2 = () => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
                   {projectNumbers.map((number) => (
-                    <Card key={number.id} className="overflow-hidden border-none shadow-sm hover:shadow-md transition-shadow group">
+                    <Card 
+                      key={number.id} 
+                      className="overflow-hidden border-none shadow-sm hover:shadow-md transition-shadow group cursor-pointer"
+                      onClick={() => setSelectedNumberId(number.id)}
+                    >
                       <CardContent className="p-3">
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex items-center gap-2 overflow-hidden">
@@ -138,15 +142,30 @@ const DashboardV2 = () => {
                               <Phone className="w-3.5 h-3.5 text-primary" />
                             </div>
                             <div className="truncate">
-                              <p className="text-xs font-bold truncate leading-tight">
-                                {number.customName || number.verifiedName}
-                              </p>
+                              <div className="flex items-center gap-1">
+                                <p className="text-xs font-bold truncate leading-tight">
+                                  {number.customName || number.verifiedName}
+                                </p>
+                                {number.lastStatusChange && (
+                                  <span className="text-[10px] text-muted-foreground font-medium bg-muted px-1 rounded flex items-center gap-0.5">
+                                    <Clock className="w-2.5 h-2.5" />
+                                    {getDaysInStatus(number.lastStatusChange)}
+                                  </span>
+                                )}
+                              </div>
                               <p className="text-[10px] text-muted-foreground truncate">
                                 {number.displayPhoneNumber}
                               </p>
                             </div>
                           </div>
-                          <QualityBadge rating={number.qualityRating} size="sm" />
+                          <div className="flex flex-col items-end gap-1">
+                            <QualityBadge rating={number.qualityRating} size="sm" />
+                            {number.previousQuality && number.previousQuality !== number.qualityRating && (
+                                <span className="text-[8px] text-muted-foreground line-through decoration-destructive/40 opacity-70">
+                                  {number.previousQuality === 'HIGH' ? 'Alta' : number.previousQuality === 'MEDIUM' ? 'Média' : 'Baixa'}
+                                </span>
+                            )}
+                          </div>
                         </div>
                         
                         <div className="flex items-center justify-between text-[10px] pt-2 border-t border-border/50">
