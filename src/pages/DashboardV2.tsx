@@ -323,11 +323,11 @@ const DashboardV2 = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-1 mt-0.5">
-                      <div className="opacity-60 scale-75 origin-left grayscale">
+                      <div className="opacity-60 grayscale shrink-0">
                         <QualityBadge rating={change.previousQuality} size="sm" />
                       </div>
-                      <ChevronRight className="w-2 h-2 text-muted-foreground/50" />
-                      <div className="scale-75 origin-left">
+                      <ChevronRight className="w-2 h-2 text-muted-foreground/50 shrink-0" />
+                      <div className="shrink-0">
                         <QualityBadge rating={change.currentQuality} size="sm" />
                       </div>
                     </div>
