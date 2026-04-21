@@ -134,7 +134,7 @@ const DashboardV2 = () => {
             <QualityBadge rating={number.qualityRating} size="sm" />
           </div>
         </div>
-        <div className="flex items-center justify-between text-[9px] text-muted-foreground mt-2 mb-1">
+        <div className="flex items-center justify-between text-[8px] text-muted-foreground mt-2 mb-1">
           <div className="flex items-center gap-1">
             <Clock className="w-3 h-3" />
             <span>
