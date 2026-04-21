@@ -123,7 +123,7 @@ const UserDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data: projects = [], isLoading } = useProjects();
-  const { data: allNumbers = [] } = useAllWhatsAppNumbers();
+  const { data: allNumbers = [], refetch: refetchNumbers } = useAllWhatsAppNumbers();
   const createProject = useCreateProject();
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -137,10 +137,13 @@ const UserDashboard = () => {
   const handleUpdateAll = async () => {
     setIsUpdating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('auto-update-status');
+      const { data, error } = await supabase.functions.invoke('auto-update-status', {
+        body: { manual: true }
+      });
       if (error) throw error;
       
       toast.success(`${data.numbersUpdated} números atualizados com sucesso!`);
+      refetchNumbers();
       refetchChanges();
     } catch (error) {
       console.error('Error updating status:', error);

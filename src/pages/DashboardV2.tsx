@@ -44,7 +44,9 @@ const DashboardV2 = () => {
   const handleUpdateAll = async () => {
     setIsUpdating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('auto-update-status');
+      const { data, error } = await supabase.functions.invoke('auto-update-status', {
+        body: { manual: true }
+      });
       if (error) throw error;
       
       toast.success(`${data.numbersUpdated} números atualizados com sucesso!`);
@@ -143,7 +145,7 @@ const DashboardV2 = () => {
                             </div>
                             <div className="truncate">
                               <div className="flex items-center gap-1">
-                                <p className="text-xs font-bold truncate leading-tight">
+                                <p className="text-xs font-bold truncate leading-tight bg-primary/5 text-primary px-1.5 py-0.5 rounded border border-primary/10">
                                   {number.customName || number.verifiedName}
                                 </p>
                                 {number.lastStatusChange && (

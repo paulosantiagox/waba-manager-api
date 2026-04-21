@@ -14,11 +14,14 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const { manual = false } = await req.json().catch(() => ({ manual: false }))
+    
     // Usa a service key do Supabase pessoal
     const personalServiceKey = Deno.env.get('PERSONAL_SUPABASE_SERVICE_KEY') ?? ''
     
     console.log('[AUTO_UPDATE] ========================================')
     console.log('[AUTO_UPDATE] Iniciando verificação -', new Date().toISOString())
+    console.log('[AUTO_UPDATE] Modo manual:', manual)
     console.log('[AUTO_UPDATE] Service Key presente:', !!personalServiceKey)
     
     if (!personalServiceKey) {
@@ -56,34 +59,36 @@ Deno.serve(async (req) => {
     console.log(`[AUTO_UPDATE] Hora de Brasília: ${brasiliaTime} (${currentTotalMinutes} minutos)`)
     console.log(`[AUTO_UPDATE] Data de Brasília: ${brasiliaDate}`)
 
-    // Busca todos os schedules
-    console.log('[AUTO_UPDATE] Buscando schedules...')
-    const { data: schedules, error: scheduleError } = await supabase
-      .from('waba_project_update_schedules')
-      .select('*')
+    let matchingSchedules = []
 
-    console.log(`[AUTO_UPDATE] Total schedules: ${schedules?.length || 0}`)
+    if (manual) {
+      console.log('[AUTO_UPDATE] Modo MANUAL: Buscando todos os projetos ativos...')
+      const { data: bms, error: bmsErr } = await supabase
+        .from('waba_business_managers')
+        .select('project_id')
+      
+      if (bmsErr) throw bmsErr
+      
+      const projectIds = [...new Set(bms.map(b => b.project_id))]
+      matchingSchedules = projectIds.map(id => ({ project_id: id, time: 'manual' }))
+    } else {
+      // Busca todos os schedules
+      console.log('[AUTO_UPDATE] Buscando schedules...')
+      const { data: schedules, error: scheduleError } = await supabase
+        .from('waba_project_update_schedules')
+        .select('*')
 
-    if (scheduleError) {
-      console.error('[AUTO_UPDATE] Erro ao buscar schedules:', scheduleError)
-      return new Response(
-        JSON.stringify({ success: false, error: scheduleError.message }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-      )
+      if (scheduleError) throw scheduleError
+
+      matchingSchedules = (schedules || []).filter(s => {
+        const [h, m] = s.time.split(':').map(Number)
+        const scheduledMinutes = h * 60 + m
+        const diff = currentTotalMinutes - scheduledMinutes
+        return diff >= 0 && diff <= 1
+      })
     }
 
-    // Filtra schedules que estão EXATAMENTE no horário ou até 1 minuto atrasados
-    // Regra: 0 <= (currentMinutes - scheduleMinutes) <= 1
-    const matchingSchedules = (schedules || []).filter(s => {
-      const [h, m] = s.time.split(':').map(Number)
-      const scheduledMinutes = h * 60 + m
-      const diff = currentTotalMinutes - scheduledMinutes
-      console.log(`[AUTO_UPDATE] Schedule ${s.time}: diff = ${diff}`)
-      // Executa se estamos no horário exato ou até 1 minuto depois
-      return diff >= 0 && diff <= 1
-    })
-
-    console.log(`[AUTO_UPDATE] Schedules correspondentes: ${matchingSchedules?.length || 0}`)
+    console.log(`[AUTO_UPDATE] Projetos para processar: ${matchingSchedules?.length || 0}`)
 
     // Agrupa por projeto
     const projectScheduleMap = new Map<string, string[]>()
@@ -114,7 +119,7 @@ Deno.serve(async (req) => {
             schedule_time: scheduleTime,
             execution_date: brasiliaDate,
             brasilia_time: brasiliaTime,
-            trigger_source: 'cron',
+            trigger_source: manual ? 'manual' : 'cron',
           })
 
         if (execError) {
