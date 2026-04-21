@@ -294,7 +294,7 @@ const DashboardV2 = () => {
               <RefreshCw className="w-3.5 h-3.5" />
             </Button>
           </div>
-          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+          <div className="flex-1 overflow-y-auto p-3 space-y-2 max-h-[480px] lg:max-h-none">
             {recentChanges.length > 0 ? (
               recentChanges.map((change) => (
                 <div 
