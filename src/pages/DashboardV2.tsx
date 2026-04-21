@@ -279,7 +279,7 @@ const DashboardV2 = () => {
         </div>
 
         {/* Right Sidebar - Recent History */}
-        <aside className="w-full lg:w-72 border-l border-border bg-white dark:bg-slate-900 flex flex-col shrink-0 min-h-0">
+        <aside className="w-full lg:w-72 border-t lg:border-t-0 lg:border-l border-border bg-white dark:bg-slate-900 flex flex-col shrink-0 min-h-0">
           <div className="p-3 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Activity className="w-4 h-4 text-primary" />
