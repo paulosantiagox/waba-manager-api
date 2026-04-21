@@ -31,12 +31,38 @@ import StatusHistoryModal from '@/components/modals/StatusHistoryModal';
 const DashboardV2 = () => {
   const { user } = useAuth();
   const { data: projects = [], isLoading: loadingProjects } = useProjects();
-  const { data: allNumbers = [], isLoading: loadingNumbers } = useAllWhatsAppNumbers();
+  const { data: allNumbers = [], isLoading: loadingNumbers, refetch: refetchNumbers } = useAllWhatsAppNumbers();
   const isMobile = useIsMobile();
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [selectedNumberId, setSelectedNumberId] = useState<string | null>(null);
 
   const projectIds = projects.map(p => p.id);
-  const userNumbers = allNumbers.filter(n => projectIds.includes(n.projectId));
-  const { data: recentChanges = [] } = useRecentStatusChanges(projectIds);
+  // MOSTRAR APENAS NÚMEROS ATIVOS (isVisible)
+  const userNumbers = allNumbers.filter(n => projectIds.includes(n.projectId) && n.isVisible);
+  const { data: recentChanges = [], refetch: refetchChanges } = useRecentStatusChanges(projectIds);
+
+  const handleUpdateAll = async () => {
+    setIsUpdating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('auto-update-status');
+      if (error) throw error;
+      
+      toast.success(`${data.numbersUpdated} números atualizados com sucesso!`);
+      refetchNumbers();
+      refetchChanges();
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast.error('Erro ao atualizar números');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const getDaysInStatus = (lastChangeDate?: string) => {
+    if (!lastChangeDate) return null;
+    const days = differenceInDays(new Date(), new Date(lastChangeDate));
+    return days > 0 ? `+${days}d` : 'Hoje';
+  };
 
   if (loadingProjects || loadingNumbers) {
     return (
