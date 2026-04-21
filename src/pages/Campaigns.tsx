@@ -303,54 +303,72 @@ const Campaigns = () => {
               </CardHeader>
               <CollapsibleContent>
                 <CardContent className="space-y-2 pt-0">
-                  {sortedCampaigns.length > 0 ? sortedCampaigns.map((campaign, index) => (
-                    <div key={campaign.id} className={cn(
-                      "p-3 rounded-lg transition-all group",
-                      activeCampaign?.id === campaign.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
-                      isCampaignPinned(campaign.id) && activeCampaign?.id !== campaign.id && 'ring-1 ring-primary/30 bg-primary/5'
-                    )}>
-                      <div className="flex items-center justify-between">
-                        <button onClick={() => setSelectedCampaign(campaign.id)} className="flex-1 text-left">
-                          <div className="flex items-center gap-2">
-                            {isCampaignPinned(campaign.id) && <Pin className="w-3 h-3 text-primary fill-primary" />}
-                            <p className="font-medium text-sm">{campaign.name}</p>
-                          </div>
-                          <p className={`text-xs ${activeCampaign?.id === campaign.id ? 'opacity-80' : 'text-muted-foreground'}`}>{broadcasts.filter(b => b.campaignId === campaign.id).length} disparos</p>
-                        </button>
-                        <div className="flex items-center gap-1">
-                          <SortableControls
-                            isPinned={isCampaignPinned(campaign.id)}
-                            onTogglePin={() => toggleCampaignPin(campaign.id)}
-                            onMoveUp={() => moveCampaignUp(campaign.id)}
-                            onMoveDown={() => moveCampaignDown(campaign.id)}
-                            canMoveUp={index > 0}
-                            canMoveDown={index < sortedCampaigns.length - 1}
-                            size="sm"
-                            className="opacity-0 group-hover:opacity-100 transition-opacity"
-                          />
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className={`h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity ${activeCampaign?.id === campaign.id ? 'hover:bg-primary-foreground/20' : ''}`}>
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="bg-popover">
-                              <DropdownMenuItem onClick={() => handleEditCampaignOpen(campaign)}>
-                                <Edit2 className="w-4 h-4 mr-2" />
-                                Editar
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteItem({ type: 'campaign', item: campaign })}>
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Excluir
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                          <ChevronRight className="w-4 h-4" />
+                  {groupedCampaigns.length > 0 ? groupedCampaigns.map(([projectId, campaignGroup]) => {
+                    const project = projects.find(p => p.id === projectId);
+                    return (
+                      <div key={projectId} className="space-y-1 mb-4 last:mb-0">
+                        <div className="flex items-center gap-2 px-2 py-1 bg-muted/30 rounded-md mb-1.5 border border-border/50">
+                          <FolderKanban className="w-3 h-3 text-primary" />
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground truncate">
+                            {project?.name || 'Sem Projeto'}
+                          </span>
                         </div>
+                        {campaignGroup.map((campaign) => {
+                          const globalIndex = sortedCampaigns.findIndex(c => c.id === campaign.id);
+                          return (
+                            <div key={campaign.id} className={cn(
+                              "p-3 rounded-lg transition-all group mb-1 last:mb-0",
+                              activeCampaign?.id === campaign.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
+                              isCampaignPinned(campaign.id) && activeCampaign?.id !== campaign.id && 'ring-1 ring-primary/30 bg-primary/5'
+                            )}>
+                              <div className="flex items-center justify-between">
+                                <button onClick={() => setSelectedCampaign(campaign.id)} className="flex-1 text-left">
+                                  <div className="flex items-center gap-2">
+                                    {isCampaignPinned(campaign.id) && <Pin className="w-3 h-3 text-primary fill-primary" />}
+                                    <p className="font-medium text-sm">{campaign.name}</p>
+                                  </div>
+                                  <p className={`text-xs ${activeCampaign?.id === campaign.id ? 'opacity-80' : 'text-muted-foreground'}`}>
+                                    {broadcasts.filter(b => b.campaignId === campaign.id).length} disparos
+                                  </p>
+                                </button>
+                                <div className="flex items-center gap-1">
+                                  <SortableControls
+                                    isPinned={isCampaignPinned(campaign.id)}
+                                    onTogglePin={() => toggleCampaignPin(campaign.id)}
+                                    onMoveUp={() => moveCampaignUp(campaign.id)}
+                                    onMoveDown={() => moveCampaignDown(campaign.id)}
+                                    canMoveUp={globalIndex > 0}
+                                    canMoveDown={globalIndex < sortedCampaigns.length - 1}
+                                    size="sm"
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                  />
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="icon" className={`h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity ${activeCampaign?.id === campaign.id ? 'hover:bg-primary-foreground/20' : ''}`}>
+                                        <Edit2 className="w-3.5 h-3.5" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="bg-popover">
+                                      <DropdownMenuItem onClick={() => handleEditCampaignOpen(campaign)}>
+                                        <Edit2 className="w-4 h-4 mr-2" />
+                                        Editar
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteItem({ type: 'campaign', item: campaign })}>
+                                        <Trash2 className="w-4 h-4 mr-2" />
+                                        Excluir
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                  <ChevronRight className="w-4 h-4" />
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
-                    </div>
-                  )) : (
+                    );
+                  }) : (
                     <div className="text-center py-6"><Megaphone className="w-10 h-10 mx-auto text-muted-foreground/50 mb-2" /><p className="text-sm text-muted-foreground">Nenhuma campanha</p></div>
                   )}
                 </CardContent>
