@@ -25,7 +25,7 @@ const StatsCard = ({ title, value, subtitle, icon: Icon, trend, variant = 'defau
 
   return (
     <div className={cn(
-      "rounded-xl p-6 shadow-card border border-border/50 animate-slide-up",
+      "rounded-xl p-6 shadow-card border border-border/50 animate-slide-up transition-all duration-300 hover:shadow-elevated hover:-translate-y-1",
       variants[variant]
     )}>
       <div className="flex items-start justify-between">
