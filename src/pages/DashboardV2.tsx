@@ -61,9 +61,10 @@ const DashboardV2 = () => {
   };
 
   const getDaysInStatus = (lastChangeDate?: string) => {
-    if (!lastChangeDate) return null;
+    if (!lastChangeDate) return "Sem histórico";
     const days = differenceInDays(new Date(), new Date(lastChangeDate));
-    return days > 0 ? `+${days}d` : 'Hoje';
+    if (days === 0) return "Zero";
+    return `+${days}d`;
   };
 
   if (loadingProjects || loadingNumbers) {
@@ -163,25 +164,14 @@ const DashboardV2 = () => {
                             )}
                           </div>
                         </div>
-                        {number.lastStatusChange && (
-                          <div className="flex items-center gap-1 text-[9px] text-muted-foreground mt-2 mb-1">
-                            <Clock className="w-3 h-3" />
-                            <span>
-                              {(() => {
-                                const days = differenceInDays(new Date(), new Date(number.lastStatusChange!));
-                                return `+${days} dias em ${number.qualityRating === 'HIGH' ? 'Alta' : number.qualityRating === 'MEDIUM' ? 'Média' : 'Baixa'}`;
-                              })()}
-                            </span>
-                          </div>
-                        )}
-
-                        <div className="flex items-center justify-between text-[10px] pt-2 border-t border-border/50">
-                          <span className="text-muted-foreground">
-                            {(!number.messagingLimitTier || number.messagingLimitTier === 'Não definido') 
-                              ? (number.lastStatusChange ? getDaysInStatus(number.lastStatusChange) : 'Tier --')
-                              : `Tier ${number.messagingLimitTier.replace('TIER_', '')}`
-                            }
+                        <div className="flex items-center gap-1 text-[9px] text-muted-foreground mt-2 mb-1">
+                          <Clock className="w-3 h-3" />
+                          <span>
+                            {getDaysInStatus(number.lastStatusChange)} em {number.qualityRating === 'HIGH' ? 'Alta' : number.qualityRating === 'MEDIUM' ? 'Média' : 'Baixa'}
                           </span>
+                        </div>
+
+                        <div className="flex items-center justify-end text-[10px] pt-2 border-t border-border/50">
                           <span className="text-muted-foreground">
                             {number.lastChecked ? format(new Date(number.lastChecked), "dd/MM HH:mm") : '--/-- --:--'}
                           </span>
