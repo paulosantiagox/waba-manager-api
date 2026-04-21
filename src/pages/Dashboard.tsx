@@ -308,7 +308,7 @@ const UserDashboard = () => {
 
         {projects.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.slice(0, 3).map((project, index) => (
+            {projects.map((project, index) => (
               <div key={project.id} style={{ animationDelay: `${index * 0.1}s` }}>
                 <ProjectCard project={project} numbers={allNumbers.filter(n => n.projectId === project.id)} />
               </div>
