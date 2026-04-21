@@ -93,7 +93,7 @@ export function useRecentStatusChanges(projectIds?: string[]) {
             changedAt: h.changed_at,
           };
         })
-        .slice(0, 50); // Limita a 50 mudanças recentes
+        .slice(0, 200); // Limita a 200 mudanças recentes
 
       return changes;
     },
