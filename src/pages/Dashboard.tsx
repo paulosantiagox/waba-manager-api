@@ -126,11 +126,28 @@ const UserDashboard = () => {
   const createProject = useCreateProject();
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [projectName, setProjectName] = useState('');
   const [projectDescription, setProjectDescription] = useState('');
 
   const projectIds = projects.map(p => p.id);
-  const { data: recentChanges = [] } = useRecentStatusChanges(projectIds);
+  const { data: recentChanges = [], refetch: refetchChanges } = useRecentStatusChanges(projectIds);
+
+  const handleUpdateAll = async () => {
+    setIsUpdating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('auto-update-status');
+      if (error) throw error;
+      
+      toast.success(`${data.numbersUpdated} números atualizados com sucesso!`);
+      refetchChanges();
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast.error('Erro ao atualizar números');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   const userNumbers = allNumbers.filter(n => projects.some(p => p.id === n.projectId));
 
