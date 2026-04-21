@@ -83,11 +83,11 @@ const StatusHistoryModal = ({ number, open, onOpenChange }: StatusHistoryModalPr
   const getStatusBadge = (rating: string) => {
     switch (rating) {
       case 'HIGH':
-        return <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-success/20 text-success">🟢 Alta</span>;
+        return <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-success/20 text-success">🟢 Alta</span>;
       case 'MEDIUM':
-        return <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-warning/20 text-warning">🟡 Média</span>;
+        return <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-warning/20 text-warning">🟡 Média</span>;
       case 'LOW':
-        return <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-destructive/20 text-destructive">🔴 Baixa</span>;
+        return <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-destructive/20 text-destructive">🔴 Baixa</span>;
       default:
         return <span className="text-muted-foreground">-</span>;
     }

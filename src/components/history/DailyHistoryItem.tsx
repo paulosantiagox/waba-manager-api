@@ -36,15 +36,15 @@ const getStatusChangeIndicator = (dayGroup: DailyHistoryGroup) => {
     
     if (diff > 0) {
       return (
-        <div className="flex items-center gap-1 text-success text-sm">
-          <TrendingUp className="w-3.5 h-3.5" />
+        <div className="flex items-center gap-1 text-success text-[10px]">
+          <TrendingUp className="w-3 h-3" />
           <span>Subiu de {initialStatus === 'MEDIUM' ? 'Média' : 'Baixa'}</span>
         </div>
       );
     } else if (diff < 0) {
       return (
-        <div className="flex items-center gap-1 text-destructive text-sm">
-          <TrendingDown className="w-3.5 h-3.5" />
+        <div className="flex items-center gap-1 text-destructive text-[10px]">
+          <TrendingDown className="w-3 h-3" />
           <span>Desceu de {initialStatus === 'HIGH' ? 'Alta' : 'Média'}</span>
         </div>
       );
@@ -58,15 +58,15 @@ const getStatusChangeIndicator = (dayGroup: DailyHistoryGroup) => {
     
     if (diff > 0) {
       return (
-        <div className="flex items-center gap-1 text-success text-sm">
-          <TrendingUp className="w-3.5 h-3.5" />
+        <div className="flex items-center gap-1 text-success text-[10px]">
+          <TrendingUp className="w-3 h-3" />
           <span>Subiu</span>
         </div>
       );
     } else {
       return (
-        <div className="flex items-center gap-1 text-destructive text-sm">
-          <TrendingDown className="w-3.5 h-3.5" />
+        <div className="flex items-center gap-1 text-destructive text-[10px]">
+          <TrendingDown className="w-3 h-3" />
           <span>Desceu</span>
         </div>
       );
@@ -74,8 +74,8 @@ const getStatusChangeIndicator = (dayGroup: DailyHistoryGroup) => {
   }
   
   return (
-    <div className="flex items-center gap-1 text-muted-foreground text-sm">
-      <Minus className="w-3.5 h-3.5" />
+    <div className="flex items-center gap-1 text-muted-foreground text-[10px]">
+      <Minus className="w-3 h-3" />
       <span>Estável</span>
     </div>
   );
