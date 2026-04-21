@@ -172,12 +172,13 @@ const DashboardV2 = () => {
                         </div>
 
                         <div className="pt-2 border-t border-border/50 flex flex-wrap gap-x-2 text-[8px] text-muted-foreground uppercase font-medium">
-                          <span>
-                            {number.qualityRating === 'HIGH' ? 'Alta' : number.qualityRating === 'MEDIUM' ? 'Média' : 'Baixa'} Desde: {number.lastStatusChange ? format(new Date(number.lastStatusChange), "dd/MM/yy") : '--/--/--'}
-                          </span>
-                          {number.previousQuality && (
+                          {number.previousQuality ? (
                             <span>
                               Antes: {number.previousQuality === 'HIGH' ? 'Alta' : number.previousQuality === 'MEDIUM' ? 'Média' : 'Baixa'}•{number.lastStatusChange ? format(new Date(number.lastStatusChange), "dd/MM/yy") : '--/--/--'}
+                            </span>
+                          ) : (
+                            <span>
+                              {number.qualityRating === 'HIGH' ? 'Alta' : number.qualityRating === 'MEDIUM' ? 'Média' : 'Baixa'} Desde: {number.lastStatusChange ? format(new Date(number.lastStatusChange), "dd/MM/yy") : '--/--/--'}
                             </span>
                           )}
                         </div>
