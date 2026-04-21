@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Project } from '@/types';
@@ -6,6 +7,35 @@ import { toast } from 'sonner';
 
 export function useProjects() {
   const { user, isMaster } = useAuth();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('projects-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'waba_projects',
+        },
+        () => {
+          queryClient.invalidateQueries({ 
+            queryKey: ['projects', user?.id, isMaster] 
+          });
+          queryClient.invalidateQueries({ 
+            queryKey: ['all-projects'] 
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, isMaster, queryClient]);
 
   return useQuery({
     queryKey: ['projects', user?.id, isMaster],
