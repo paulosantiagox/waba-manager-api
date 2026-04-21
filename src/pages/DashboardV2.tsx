@@ -91,10 +91,19 @@ const DashboardV2 = () => {
         </div>
         
         <div className="flex items-center gap-3">
-          <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 font-bold">
-            {userNumbers.length} Números
+          <Button 
+            size="sm" 
+            className="hidden sm:flex bg-indigo-500 hover:bg-indigo-600 shadow-lg shadow-indigo-200 text-white font-bold transition-all gap-2 h-9"
+            onClick={handleUpdateAll}
+            disabled={isUpdating}
+          >
+            <RefreshCw className={cn("w-4 h-4", isUpdating && "animate-spin")} />
+            {isUpdating ? 'Atualizando...' : 'Atualizar Tudo'}
+          </Button>
+          <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 font-bold h-9 px-3">
+            {userNumbers.length} Ativos
           </Badge>
-          <Badge variant="outline" className="bg-secondary/5 text-secondary border-secondary/20 font-bold">
+          <Badge variant="outline" className="bg-secondary/5 text-secondary border-secondary/20 font-bold h-9 px-3">
             {projects.length} Projetos
           </Badge>
         </div>
