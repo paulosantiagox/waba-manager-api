@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
             schedule_time: scheduleTime,
             execution_date: brasiliaDate,
             brasilia_time: brasiliaTime,
-            trigger_source: 'cron',
+            trigger_source: manual ? 'manual' : 'cron',
           })
 
         if (execError) {
