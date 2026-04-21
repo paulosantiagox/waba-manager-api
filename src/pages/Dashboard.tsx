@@ -250,6 +250,15 @@ const UserDashboard = () => {
             <CardTitle className="text-lg font-semibold">Ações Rápidas</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <Button 
+              className="w-full bg-indigo-500 hover:bg-indigo-600 shadow-lg shadow-indigo-200 text-white font-bold transition-all gap-2"
+              onClick={handleUpdateAll}
+              disabled={isUpdating}
+            >
+              <RefreshCw className={cn("w-4 h-4", isUpdating && "animate-spin")} />
+              {isUpdating ? 'Atualizando...' : 'Atualizar Todos'}
+            </Button>
+
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="w-full gradient-primary shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all">
