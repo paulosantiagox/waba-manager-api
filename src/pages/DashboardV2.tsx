@@ -299,7 +299,7 @@ const DashboardV2 = () => {
               recentChanges.map((change) => (
                 <div 
                   key={change.id} 
-                  className="relative pl-6 pb-4 border-l border-border last:pb-0 group cursor-pointer"
+                  className="relative pl-6 pb-3 border-l border-border last:pb-0 group cursor-pointer"
                   onClick={() => setSelectedNumberId(change.phoneNumberId)}
                 >
                   <div className={cn(
@@ -308,26 +308,28 @@ const DashboardV2 = () => {
                   )} />
                   <div className="space-y-0.5">
                     <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <span className="text-[10px] font-bold text-primary">
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[9px] font-bold text-primary">
                           {format(new Date(change.changedAt), "dd/MM '•' HH:mm", { locale: ptBR })}
                         </span>
-                        <p className="text-[11px] font-bold leading-tight group-hover:text-primary transition-colors pr-8">{change.numberName}</p>
-                        <p className="text-[10px] text-muted-foreground truncate">{change.projectName}</p>
+                        <p className="text-[10px] font-bold leading-tight group-hover:text-primary transition-colors truncate pr-1">{change.numberName}</p>
+                        <p className="text-[9px] text-muted-foreground truncate">{change.projectName}</p>
                       </div>
-                      <div className="shrink-0 -mt-1">
+                      <div className="shrink-0 -mt-1 ml-1">
                         {change.direction === 'up' 
-                          ? <TrendingUp className="w-10 h-10 text-success/20 group-hover:text-success/40 transition-colors" /> 
-                          : <TrendingDown className="w-10 h-10 text-destructive/20 group-hover:text-destructive/40 transition-colors" />
+                          ? <TrendingUp className="w-6 h-6 text-success/20 group-hover:text-success/40 transition-colors" /> 
+                          : <TrendingDown className="w-6 h-6 text-destructive/20 group-hover:text-destructive/40 transition-colors" />
                         }
                       </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <div className="opacity-50 scale-90 origin-left grayscale">
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <div className="opacity-60 scale-75 origin-left grayscale">
                         <QualityBadge rating={change.previousQuality} size="sm" />
                       </div>
-                      <ChevronRight className="w-2 h-2 text-muted-foreground" />
-                      <QualityBadge rating={change.currentQuality} size="sm" />
+                      <ChevronRight className="w-2 h-2 text-muted-foreground/50" />
+                      <div className="scale-75 origin-left">
+                        <QualityBadge rating={change.currentQuality} size="sm" />
+                      </div>
                     </div>
                   </div>
                 </div>
