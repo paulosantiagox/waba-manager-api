@@ -47,14 +47,22 @@ const DashboardV2 = () => {
       const { data, error } = await supabase.functions.invoke('auto-update-status', {
         body: { manual: true }
       });
-      if (error) throw error;
+
+      if (error) {
+        console.error('Functions error:', error);
+        throw error;
+      }
+
+      if (!data || data.success === false) {
+        throw new Error(data?.error || 'Erro ao processar atualização');
+      }
       
       toast.success(`${data.numbersUpdated} números atualizados com sucesso!`);
       refetchNumbers();
       refetchChanges();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating status:', error);
-      toast.error('Erro ao atualizar números');
+      toast.error(`Erro ao atualizar números: ${error.message || 'Erro desconhecido'}`);
     } finally {
       setIsUpdating(false);
     }
