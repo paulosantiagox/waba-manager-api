@@ -7,7 +7,7 @@ import { useProjects, useCreateProject } from '@/hooks/useProjects';
 import { useAllWhatsAppNumbers } from '@/hooks/useWhatsAppNumbers';
 import { useUsers } from '@/hooks/useUsers';
 import { useRecentStatusChanges } from '@/hooks/useRecentStatusChanges';
-import { Users, FolderKanban, Phone, Megaphone, Activity, TrendingUp, TrendingDown, ArrowRight, Loader2, Plus, Maximize2 } from 'lucide-react';
+import { Users, FolderKanban, Phone, Megaphone, Activity, TrendingUp, TrendingDown, ArrowRight, Loader2, Plus, Maximize2, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,9 @@ import QualityBadge from '@/components/dashboard/QualityBadge';
 import { Link, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 const MasterDashboard = () => {
   const { data: users = [] } = useUsers();
@@ -124,11 +127,28 @@ const UserDashboard = () => {
   const createProject = useCreateProject();
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [projectName, setProjectName] = useState('');
   const [projectDescription, setProjectDescription] = useState('');
 
   const projectIds = projects.map(p => p.id);
-  const { data: recentChanges = [] } = useRecentStatusChanges(projectIds);
+  const { data: recentChanges = [], refetch: refetchChanges } = useRecentStatusChanges(projectIds);
+
+  const handleUpdateAll = async () => {
+    setIsUpdating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('auto-update-status');
+      if (error) throw error;
+      
+      toast.success(`${data.numbersUpdated} números atualizados com sucesso!`);
+      refetchChanges();
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast.error('Erro ao atualizar números');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   const userNumbers = allNumbers.filter(n => projects.some(p => p.id === n.projectId));
 
@@ -179,7 +199,7 @@ const UserDashboard = () => {
             <CardContent>
               {recentChanges.length > 0 ? (
                 <div className="space-y-1">
-                  {recentChanges.slice(0, 5).map((change) => (
+                  {recentChanges.map((change) => (
                     <Link
                       key={change.id}
                       to={`/projects/${change.projectId}`}
@@ -231,6 +251,15 @@ const UserDashboard = () => {
             <CardTitle className="text-lg font-semibold">Ações Rápidas</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <Button 
+              className="w-full bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 text-primary-foreground font-bold transition-all gap-2"
+              onClick={handleUpdateAll}
+              disabled={isUpdating}
+            >
+              <RefreshCw className={cn("w-4 h-4", isUpdating && "animate-spin")} />
+              {isUpdating ? 'Atualizando...' : 'Atualizar Todos'}
+            </Button>
+
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="w-full gradient-primary shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all">
@@ -280,7 +309,7 @@ const UserDashboard = () => {
 
         {projects.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.slice(0, 3).map((project, index) => (
+            {projects.map((project, index) => (
               <div key={project.id} style={{ animationDelay: `${index * 0.1}s` }}>
                 <ProjectCard project={project} numbers={allNumbers.filter(n => n.projectId === project.id)} />
               </div>

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProjects } from '@/hooks/useProjects';
 import { useAllWhatsAppNumbers } from '@/hooks/useWhatsAppNumbers';
@@ -11,26 +12,57 @@ import {
   Phone, 
   Loader2,
   Maximize2,
-  ChevronRight
+  ChevronRight,
+  RefreshCw,
+  Clock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import QualityBadge from '@/components/dashboard/QualityBadge';
 import { Link } from 'react-router-dom';
-import { format } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
+import StatusHistoryModal from '@/components/modals/StatusHistoryModal';
 
 const DashboardV2 = () => {
   const { user } = useAuth();
   const { data: projects = [], isLoading: loadingProjects } = useProjects();
-  const { data: allNumbers = [], isLoading: loadingNumbers } = useAllWhatsAppNumbers();
+  const { data: allNumbers = [], isLoading: loadingNumbers, refetch: refetchNumbers } = useAllWhatsAppNumbers();
   const isMobile = useIsMobile();
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [selectedNumberId, setSelectedNumberId] = useState<string | null>(null);
 
   const projectIds = projects.map(p => p.id);
-  const userNumbers = allNumbers.filter(n => projectIds.includes(n.projectId));
-  const { data: recentChanges = [] } = useRecentStatusChanges(projectIds);
+  // MOSTRAR APENAS NÚMEROS ATIVOS (isVisible)
+  const userNumbers = allNumbers.filter(n => projectIds.includes(n.projectId) && n.isVisible);
+  const { data: recentChanges = [], refetch: refetchChanges } = useRecentStatusChanges(projectIds);
+
+  const handleUpdateAll = async () => {
+    setIsUpdating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('auto-update-status');
+      if (error) throw error;
+      
+      toast.success(`${data.numbersUpdated} números atualizados com sucesso!`);
+      refetchNumbers();
+      refetchChanges();
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast.error('Erro ao atualizar números');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const getDaysInStatus = (lastChangeDate?: string) => {
+    if (!lastChangeDate) return null;
+    const days = differenceInDays(new Date(), new Date(lastChangeDate));
+    return days > 0 ? `+${days}d` : 'Hoje';
+  };
 
   if (loadingProjects || loadingNumbers) {
     return (
@@ -59,10 +91,19 @@ const DashboardV2 = () => {
         </div>
         
         <div className="flex items-center gap-3">
-          <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 font-bold">
-            {userNumbers.length} Números
+          <Button 
+            size="sm" 
+            className="hidden sm:flex bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 text-primary-foreground font-bold transition-all gap-2 h-9"
+            onClick={handleUpdateAll}
+            disabled={isUpdating}
+          >
+            <RefreshCw className={cn("w-4 h-4", isUpdating && "animate-spin")} />
+            {isUpdating ? 'Atualizando...' : 'Atualizar Tudo'}
+          </Button>
+          <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 font-bold h-9 px-3">
+            {userNumbers.length} Ativos
           </Badge>
-          <Badge variant="outline" className="bg-secondary/5 text-secondary border-secondary/20 font-bold">
+          <Badge variant="outline" className="bg-secondary/5 text-secondary border-secondary/20 font-bold h-9 px-3">
             {projects.length} Projetos
           </Badge>
         </div>
@@ -89,7 +130,11 @@ const DashboardV2 = () => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
                   {projectNumbers.map((number) => (
-                    <Card key={number.id} className="overflow-hidden border-none shadow-sm hover:shadow-md transition-shadow group">
+                    <Card 
+                      key={number.id} 
+                      className="overflow-hidden border-none shadow-sm hover:shadow-md transition-shadow group cursor-pointer"
+                      onClick={() => setSelectedNumberId(number.id)}
+                    >
                       <CardContent className="p-3">
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex items-center gap-2 overflow-hidden">
@@ -97,15 +142,30 @@ const DashboardV2 = () => {
                               <Phone className="w-3.5 h-3.5 text-primary" />
                             </div>
                             <div className="truncate">
-                              <p className="text-xs font-bold truncate leading-tight">
-                                {number.customName || number.verifiedName}
-                              </p>
+                              <div className="flex items-center gap-1">
+                                <p className="text-xs font-bold truncate leading-tight">
+                                  {number.customName || number.verifiedName}
+                                </p>
+                                {number.lastStatusChange && (
+                                  <span className="text-[10px] text-muted-foreground font-medium bg-muted px-1 rounded flex items-center gap-0.5">
+                                    <Clock className="w-2.5 h-2.5" />
+                                    {getDaysInStatus(number.lastStatusChange)}
+                                  </span>
+                                )}
+                              </div>
                               <p className="text-[10px] text-muted-foreground truncate">
                                 {number.displayPhoneNumber}
                               </p>
                             </div>
                           </div>
-                          <QualityBadge rating={number.qualityRating} size="sm" />
+                          <div className="flex flex-col items-end gap-1">
+                            <QualityBadge rating={number.qualityRating} size="sm" />
+                            {number.previousQuality && number.previousQuality !== number.qualityRating && (
+                                <span className="text-[8px] text-muted-foreground line-through decoration-destructive/40 opacity-70">
+                                  {number.previousQuality === 'HIGH' ? 'Alta' : number.previousQuality === 'MEDIUM' ? 'Média' : 'Baixa'}
+                                </span>
+                            )}
+                          </div>
                         </div>
                         
                         <div className="flex items-center justify-between text-[10px] pt-2 border-t border-border/50">
@@ -124,36 +184,54 @@ const DashboardV2 = () => {
         </div>
 
         {/* Right Sidebar - Recent History */}
-        <aside className="w-full lg:w-80 border-l border-border bg-white dark:bg-slate-900 flex flex-col shrink-0">
-          <div className="p-4 border-b border-border flex items-center gap-2">
-            <Activity className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-bold">Histórico de Mudanças</h3>
+        <aside className="w-full lg:w-72 border-l border-border bg-white dark:bg-slate-900 flex flex-col shrink-0">
+          <div className="p-3 border-b border-border flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Activity className="w-4 h-4 text-primary" />
+              <h3 className="text-sm font-bold">Histórico Recente</h3>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 text-muted-foreground hover:text-primary"
+              onClick={() => refetchChanges()}
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+            </Button>
           </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto p-3 space-y-3">
             {recentChanges.length > 0 ? (
               recentChanges.map((change) => (
-                <div key={change.id} className="relative pl-6 pb-4 border-l border-border last:pb-0">
+                <div 
+                  key={change.id} 
+                  className="relative pl-5 pb-3 border-l border-border last:pb-0 group cursor-pointer"
+                  onClick={() => setSelectedNumberId(change.phoneNumberId)}
+                >
                   <div className={cn(
-                    "absolute left-[-5px] top-0 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900",
+                    "absolute left-[-4.5px] top-1 w-2 h-2 rounded-full border border-white dark:border-slate-900",
                     change.direction === 'up' ? "bg-success" : "bg-destructive"
                   )} />
-                  <div className="space-y-1">
+                  <div className="space-y-0.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-muted-foreground uppercase">
-                        {format(new Date(change.changedAt), "dd/MM HH:mm", { locale: ptBR })}
+                      <span className="text-[9px] font-bold text-muted-foreground">
+                        {format(new Date(change.changedAt), "HH:mm '•' dd/MM", { locale: ptBR })}
                       </span>
                       {change.direction === 'up' 
-                        ? <TrendingUp className="w-3 h-3 text-success" /> 
-                        : <TrendingDown className="w-3 h-3 text-destructive" />
+                        ? <TrendingUp className="w-2.5 h-2.5 text-success" /> 
+                        : <TrendingDown className="w-2.5 h-2.5 text-destructive" />
                       }
                     </div>
-                    <p className="text-xs font-semibold leading-tight">{change.numberName}</p>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] text-muted-foreground">{change.previousQuality}</span>
+                    <p className="text-[11px] font-bold leading-tight group-hover:text-primary transition-colors">{change.numberName}</p>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[9px] text-muted-foreground opacity-70 line-through">
+                        {change.previousQuality === 'HIGH' ? 'Alta' : change.previousQuality === 'MEDIUM' ? 'Média' : 'Baixa'}
+                      </span>
                       <ChevronRight className="w-2 h-2 text-muted-foreground" />
-                      <QualityBadge rating={change.currentQuality} size="sm" />
+                      <QualityBadge rating={change.currentQuality} size="sm" showLabel={false} />
+                      <span className="text-[10px] font-medium">
+                        {change.currentQuality === 'HIGH' ? 'Alta' : change.currentQuality === 'MEDIUM' ? 'Média' : 'Baixa'}
+                      </span>
                     </div>
-                    <p className="text-[10px] text-muted-foreground italic truncate">{change.projectName}</p>
                   </div>
                 </div>
               ))
@@ -166,6 +244,12 @@ const DashboardV2 = () => {
           </div>
         </aside>
       </main>
+
+      <StatusHistoryModal 
+        number={allNumbers.find(n => n.id === selectedNumberId) || null}
+        open={!!selectedNumberId}
+        onOpenChange={(open) => !open && setSelectedNumberId(null)}
+      />
     </div>
   );
 };
