@@ -398,19 +398,6 @@ const ProjectDetail = () => {
                   </TooltipContent>
                 </Tooltip>
               )}
-              {/* Indicador de dias no status atual - calculado do histórico */}
-              {daysInCurrentStatus !== null && daysInCurrentStatus >= 0 && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="text-[10px] font-medium text-muted-foreground">
-                      +{daysInCurrentStatus}d
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{daysInCurrentStatus === 0 ? 'Mudou hoje' : `Há ${daysInCurrentStatus} dia${daysInCurrentStatus !== 1 ? 's' : ''} neste status`}</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
               {/* Indicador de mudança de status - baseado no histórico (permanente) */}
               {previousQualityFromHistory && statusStartDate && (() => {
                 const qualityOrder = { 'LOW': 1, 'MEDIUM': 2, 'HIGH': 3 };
