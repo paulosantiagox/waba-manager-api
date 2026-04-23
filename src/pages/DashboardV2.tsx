@@ -53,7 +53,8 @@ const DashboardV2 = () => {
     }
   };
 
-  const getDays = (date?: string) => {
+  const getDays = (number: any) => {
+    const date = number.lastStatusChange || number.createdAt;
     if (!date) return 0;
     return differenceInDays(new Date(), new Date(date));
   };
@@ -68,14 +69,14 @@ const DashboardV2 = () => {
       const qA = getQualityValue(a.qualityRating);
       const qB = getQualityValue(b.qualityRating);
       if (qA !== qB) return qB - qA;
-      return getDays(b.lastStatusChange) - getDays(a.lastStatusChange);
+      return getDays(b) - getDays(a);
     });
   } else if (sortMode === 'days') {
     userNumbers = [...userNumbers].sort((a, b) => {
       const qA = a.qualityRating === 'HIGH' ? 1 : 0;
       const qB = b.qualityRating === 'HIGH' ? 1 : 0;
       if (qA !== qB) return qB - qA;
-      return getDays(b.lastStatusChange) - getDays(a.lastStatusChange);
+      return getDays(b) - getDays(a);
     });
   }
 
@@ -151,7 +152,7 @@ const DashboardV2 = () => {
           <div className="flex flex-wrap gap-x-2 text-[8px] text-muted-foreground uppercase font-medium">
             {number.previousQuality ? (
               <span>
-                Antes: {number.previousQuality === 'HIGH' ? 'Alta' : number.previousQuality === 'MEDIUM' ? 'Média' : 'Baixa'}•{format(new Date(number.lastStatusChange), "dd/MM/yy")}
+                Antes: {number.previousQuality === 'HIGH' ? 'Alta' : number.previousQuality === 'MEDIUM' ? 'Média' : 'Baixa'}•{number.lastStatusChange ? format(new Date(number.lastStatusChange), "dd/MM/yy") : '--/--/--'}
               </span>
             ) : (
               <span>
