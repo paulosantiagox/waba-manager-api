@@ -53,7 +53,8 @@ const DashboardV2 = () => {
     }
   };
 
-  const getDays = (date?: string) => {
+  const getDays = (number: any) => {
+    const date = number.lastStatusChange || number.createdAt;
     if (!date) return 0;
     return differenceInDays(new Date(), new Date(date));
   };
@@ -68,14 +69,14 @@ const DashboardV2 = () => {
       const qA = getQualityValue(a.qualityRating);
       const qB = getQualityValue(b.qualityRating);
       if (qA !== qB) return qB - qA;
-      return getDays(b.lastStatusChange) - getDays(a.lastStatusChange);
+      return getDays(b) - getDays(a);
     });
   } else if (sortMode === 'days') {
     userNumbers = [...userNumbers].sort((a, b) => {
       const qA = a.qualityRating === 'HIGH' ? 1 : 0;
       const qB = b.qualityRating === 'HIGH' ? 1 : 0;
       if (qA !== qB) return qB - qA;
-      return getDays(b.lastStatusChange) - getDays(a.lastStatusChange);
+      return getDays(b) - getDays(a);
     });
   }
 
@@ -101,9 +102,10 @@ const DashboardV2 = () => {
     }
   };
 
-  const getDaysInStatus = (lastChangeDate?: string) => {
-    if (!lastChangeDate) return "0d";
-    const days = differenceInDays(new Date(), new Date(lastChangeDate));
+  const getDaysInStatus = (number: any) => {
+    const date = number.lastStatusChange || number.createdAt;
+    if (!date) return "0d";
+    const days = differenceInDays(new Date(), new Date(date));
     return `${days}d`;
   };
 
@@ -138,7 +140,7 @@ const DashboardV2 = () => {
           <div className="flex items-center gap-1">
             <Clock className="w-3 h-3" />
             <span>
-              {getDaysInStatus(number.lastStatusChange)} em {number.qualityRating === 'HIGH' ? 'Alta' : number.qualityRating === 'MEDIUM' ? 'Média' : 'Baixa'}
+              {getDaysInStatus(number)} em {number.qualityRating === 'HIGH' ? 'Alta' : number.qualityRating === 'MEDIUM' ? 'Média' : 'Baixa'}
             </span>
           </div>
           <span className="shrink-0">
@@ -154,7 +156,7 @@ const DashboardV2 = () => {
               </span>
             ) : (
               <span>
-                {number.qualityRating === 'HIGH' ? 'Alta' : number.qualityRating === 'MEDIUM' ? 'Média' : 'Baixa'} Desde: {number.lastStatusChange ? format(new Date(number.lastStatusChange), "dd/MM/yy") : '--/--/--'}
+                {number.qualityRating === 'HIGH' ? 'Alta' : number.qualityRating === 'MEDIUM' ? 'Média' : 'Baixa'} Desde: {format(new Date(number.lastStatusChange || number.createdAt), "dd/MM/yy")}
               </span>
             )}
           </div>
