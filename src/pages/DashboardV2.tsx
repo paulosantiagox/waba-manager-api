@@ -101,9 +101,10 @@ const DashboardV2 = () => {
     }
   };
 
-  const getDaysInStatus = (lastChangeDate?: string) => {
-    if (!lastChangeDate) return "0d";
-    const days = differenceInDays(new Date(), new Date(lastChangeDate));
+  const getDaysInStatus = (number: any) => {
+    const date = number.lastStatusChange || number.createdAt;
+    if (!date) return "0d";
+    const days = differenceInDays(new Date(), new Date(date));
     return `${days}d`;
   };
 
@@ -138,7 +139,7 @@ const DashboardV2 = () => {
           <div className="flex items-center gap-1">
             <Clock className="w-3 h-3" />
             <span>
-              {getDaysInStatus(number.lastStatusChange)} em {number.qualityRating === 'HIGH' ? 'Alta' : number.qualityRating === 'MEDIUM' ? 'Média' : 'Baixa'}
+              {getDaysInStatus(number)} em {number.qualityRating === 'HIGH' ? 'Alta' : number.qualityRating === 'MEDIUM' ? 'Média' : 'Baixa'}
             </span>
           </div>
           <span className="shrink-0">
@@ -150,11 +151,11 @@ const DashboardV2 = () => {
           <div className="flex flex-wrap gap-x-2 text-[8px] text-muted-foreground uppercase font-medium">
             {number.previousQuality ? (
               <span>
-                Antes: {number.previousQuality === 'HIGH' ? 'Alta' : number.previousQuality === 'MEDIUM' ? 'Média' : 'Baixa'}•{number.lastStatusChange ? format(new Date(number.lastStatusChange), "dd/MM/yy") : '--/--/--'}
+                Antes: {number.previousQuality === 'HIGH' ? 'Alta' : number.previousQuality === 'MEDIUM' ? 'Média' : 'Baixa'}•{format(new Date(number.lastStatusChange), "dd/MM/yy")}
               </span>
             ) : (
               <span>
-                {number.qualityRating === 'HIGH' ? 'Alta' : number.qualityRating === 'MEDIUM' ? 'Média' : 'Baixa'} Desde: {number.lastStatusChange ? format(new Date(number.lastStatusChange), "dd/MM/yy") : '--/--/--'}
+                {number.qualityRating === 'HIGH' ? 'Alta' : number.qualityRating === 'MEDIUM' ? 'Média' : 'Baixa'} Desde: {format(new Date(number.lastStatusChange || number.createdAt), "dd/MM/yy")}
               </span>
             )}
           </div>
