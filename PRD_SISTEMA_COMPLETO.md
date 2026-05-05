@@ -1,65 +1,95 @@
-# PRD - Sistema de Monitoramento Global de WhatsApp (WABA)
+# PRD - Documento de Requisitos do Produto (Sistema de Monitoramento WABA)
 
-Este documento detalha todos os módulos, arquitetura e requisitos do sistema de monitoramento e gestão de contas WhatsApp Business API.
-
-## 1. Módulo de Autenticação e Segurança
-O sistema utiliza **Supabase Auth** para gestão de identidade e controle de acesso.
-
-### 1.1. Fluxos de Acesso
-- **Login/Senha:** Autenticação via email e senha com persistência de sessão.
-- **Cadastro (Signup):** Criação de conta com ativação automática via Edge Function (`admin-update-user-status`).
-- **Níveis de Permissão (RBAC):**
-  - **Master:** Acesso total ao sistema, gestão de usuários e configurações globais.
-  - **User:** Acesso aos projetos e números aos quais está vinculado.
-
-### 1.2. Perfil de Usuário
-- Gestão de nome, email e foto.
-- Sincronização automática com a tabela `waba_profiles`.
-
-## 2. Dashboard V2 (Monitoramento Global)
-O coração do sistema, focado em alta densidade de informação e tempo real.
-
-### 2.1. Funcionalidades
-- **Grid de Números:** Visualização de todos os números WABA agrupados por projeto.
-- **Sincronização Real-time:** Uso de Supabase Realtime para atualizar status sem refresh.
-- **Métricas de Qualidade:** Mapeamento visual das cores do Meta (Verde/Alta, Amarelo/Média, Vermelho/Baixa).
-- **Indicadores de Tempo:** Contador de "Dias em Alta" e data da última mudança.
-- **Activity Feed:** Barra lateral com o histórico recente de mudanças de status de toda a operação.
-
-## 3. Gestão de Projetos
-Módulo para organização lógica das contas.
-
-### 3.1. Funcionalidades
-- **CRUD de Projetos:** Criação, edição e exclusão de pastas de projeto.
-- **Organização:** Sistema de "Pin" (fixar) e ordenação manual para priorizar projetos importantes.
-- **Dashboard Interno:** Cada projeto possui sua própria visão detalhada com métricas específicas de saúde dos números vinculados.
-
-## 4. Campanhas e Disparos
-Módulo focado na operação de envios em massa e controle de histórico.
-
-### 4.1. Gestão de Campanhas
-- Organização de disparos por objetivos (ex: Lançamento, Remarketing).
-- Vinculação de campanhas a projetos específicos para relatórios.
-
-### 4.2. Registro de Disparos (Broadcasts)
-- Registro detalhado de cada envio: Data, Hora, Conta utilizada, Lista de contatos, Template e Quantidade.
-- **Template de Resumo:** Sistema inteligente que gera um texto formatado (copiar para área de transferência) com emojis e dados do disparo para facilitar o reporte em grupos de WhatsApp.
-
-### 4.3. Atalhos e Tipos de Ação
-- **Atalhos (Shortcuts):** Armazenamento de textos e copies frequentes para acesso rápido.
-- **Tipos de Ação:** Categorização dos disparos (ex: Ativo, Reativo, Recuperação).
-
-## 5. Integração com Meta (WABA)
-A integração técnica que sustenta os dados de qualidade.
-
-### 5.1. Conexão Técnica
-- **API:** Graph API v21.0.
-- **Autenticação:** Tokens de Sistema por Business Manager (BM).
-- **Dados Capturados:** `quality_rating`, `messaging_limit_tier`, `display_phone_number`.
-
-### 5.2. Automação (Edge Functions)
-- **Auto-Update Cron:** Script que roda periodicamente para buscar atualizações no Meta.
-- **Trigger de Histórico:** Sempre que um status muda no Meta, o sistema grava automaticamente na tabela `waba_number_status_history`.
+## 1. Visão Geral
+Este sistema é uma plataforma enterprise de monitoramento e gestão para contas de **WhatsApp Business API (WABA)**. Ele resolve o problema de falta de visibilidade sobre a saúde de múltiplos números de WhatsApp, permitindo que empresas monitorem o status de qualidade (Quality Rating), gerenciem campanhas de disparo e organizem seus ativos por projetos de forma centralizada e em tempo real.
 
 ---
-*Este documento serve como a verdade única do produto e deve ser atualizado conforme novas funcionalidades forem implementadas.*
+
+## 2. Estrutura de Autenticação e Usuários
+A segurança e o controle de acesso são fundamentais para proteger os ativos da empresa.
+
+### 2.1. Controle de Acesso (RBAC)
+- **Nível Master:**
+  - Gestão total de usuários (ativar/desativar).
+  - Visualização de logs de atividade.
+  - Acesso a todas as BMs e projetos.
+- **Nível User:**
+  - Acesso restrito aos projetos e campanhas designados.
+  - Visualização de métricas de qualidade.
+
+### 2.2. Fluxos de Login e Cadastro
+- **Login:** Protegido via Supabase Auth com validação de status de perfil (contas inativas não entram).
+- **Cadastro:** Usuário se cadastra e entra em fila de aprovação ou é ativado automaticamente via Edge Function administrativa, garantindo que apenas pessoal autorizado acesse o dashboard.
+
+---
+
+## 3. Monitoramento Global (Dashboard V2)
+O Dashboard V2 é o centro operacional, otimizado para mobile-first e monitoramento em tempo real.
+
+### 3.1. Funcionalidades Detalhadas
+- **Visão por Projetos:** Agrupamento inteligente para empresas que gerenciam diferentes marcas ou departamentos.
+- **Cards de Status (Alta Densidade):**
+  - **Nome:** Exibe o nome customizado ou o nome verificado no Meta.
+  - **Qualidade:** Indicadores visuais de cor (Verde para High, Amarelo para Medium, Vermelho para Low).
+  - **Métrica de Tempo:** Calcula automaticamente "Dias em Alta" para identificar números mais resilientes.
+  - **Fallback de Dados:** Caso o Meta não retorne a data da última mudança, o sistema utiliza a data de cadastro para não deixar campos vazios.
+- **Sincronização em Tempo Real:** Conexão via WebSockets (Supabase Realtime) que reflete mudanças no status do Meta em todos os dispositivos logados simultaneamente.
+- **Barra Lateral de Histórico (Activity Feed):**
+  - Lista cronológica das últimas 20 mudanças de status da operação.
+  - Mostra a direção da mudança (Melhorou ou Piorou) com ícones de tendência.
+
+---
+
+## 4. Gestão de Projetos e BMs
+A organização administrativa permite escalar a operação para centenas de números.
+
+### 4.1. Módulo de Projetos
+- **Organização:** Cada projeto funciona como uma pasta lógica.
+- **Ordenação Inteligente:** Possibilidade de fixar (pin) projetos prioritários no topo.
+- **Dashboard Específico:** Dentro de cada projeto, visões detalhadas e filtros específicos por Business Manager.
+
+### 4.2. Business Managers (BMs)
+- Armazenamento centralizado de ID da BM e Access Tokens.
+- Gestão de cartões vinculados (últimos 4 dígitos para identificação de faturamento).
+- Possibilidade de vincular múltiplos números a uma única BM.
+
+---
+
+## 5. Campanhas e Disparos (Operação)
+O sistema não apenas monitora, mas também ajuda a documentar a operação de envios.
+
+### 5.1. Gestão de Campanhas
+- Criação de campanhas (ex: "Lançamento de Verão").
+- Ativação/Arquivamento para manter a organização.
+
+### 5.2. Registro de Disparos (Broadcasts)
+- **Log de Envios:** Cadastro de cada disparo informando data, hora, lista de contatos (nome), template utilizado e quantidade de contatos.
+- **Resumo para WhatsApp:** Ferramenta que gera um texto pronto para ser colado em grupos de reporte, contendo emoji de status de conta e dados formatados.
+- **Agendamento:** Gestão de status de disparo (Preparando, Agendado, Enviado, Cancelado).
+
+### 5.3. Ferramentas de Apoio
+- **Tipos de Ação:** Personalização das categorias de disparo com cores (ex: Ativo, Reativo, Recuperação).
+- **Atalhos (Shortcuts):** Repositório de textos e copies padrão para acesso rápido da equipe de operação.
+
+---
+
+## 6. Integração com a API do Meta
+Detalhes técnicos da comunicação com a infraestrutura do Facebook/WhatsApp.
+
+### 6.1. Comunicação via Graph API
+- **Endpoint Principal:** `/v21.0/{phone-number-id}`.
+- **Campos Sincronizados:**
+  - `quality_rating`: Saúde da conta.
+  - `messaging_limit_tier`: Limite de mensagens (1k, 10k, 100k, etc).
+  - `code_verification_status`: Status de verificação do número.
+
+### 6.2. Automação e Cron Jobs
+- **Edge Function `auto-update-status`:** Script que varre periodicamente (ou sob demanda manual) todos os números e atualiza o banco de dados.
+- **Tratamento de Erros:** Sistema de log que captura falhas de token ou erros da API do Meta, impedindo que dados corrompidos afetem o dashboard.
+
+---
+
+## 7. Requisitos Não Funcionais
+- **Responsividade:** Interface 100% adaptada para celulares (Mobile-First).
+- **Performance:** Carregamento rápido via React Query e cache de dados.
+- **Arquitetura:** Separação clara entre Presentation (UI), Business Logic (Hooks) e Data Access (Supabase).
