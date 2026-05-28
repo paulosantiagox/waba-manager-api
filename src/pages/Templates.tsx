@@ -92,20 +92,37 @@ function TemplateCard({ template }: { template: MetaTemplate }) {
   const footerComponent = template.components.find(c => c.type === 'FOOTER');
   const buttonsComponent = template.components.find(c => c.type === 'BUTTONS');
 
+  const hasMedia = headerComponent && headerComponent.format !== 'TEXT';
+
   return (
-    <div className="border rounded-xl bg-card hover:shadow-sm transition-shadow">
+    <div className={cn(
+      'border rounded-xl bg-card transition-shadow flex flex-col',
+      expanded ? 'shadow-md' : 'hover:shadow-sm'
+    )}>
+      {/* Card header */}
       <div
-        className="flex items-start gap-3 p-4 cursor-pointer"
+        className="flex items-start gap-3 p-4 cursor-pointer select-none"
         onClick={() => setExpanded(v => !v)}
       >
-        <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-          <FileText className="w-4 h-4 text-primary" />
+        <div className={cn(
+          'w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5',
+          template.status === 'APPROVED' ? 'bg-green-100' :
+          template.status === 'REJECTED' ? 'bg-red-100' :
+          template.status === 'PENDING' || template.status === 'IN_APPEAL' ? 'bg-yellow-100' :
+          'bg-muted'
+        )}>
+          <FileText className={cn(
+            'w-4 h-4',
+            template.status === 'APPROVED' ? 'text-green-600' :
+            template.status === 'REJECTED' ? 'text-red-500' :
+            template.status === 'PENDING' || template.status === 'IN_APPEAL' ? 'text-yellow-600' :
+            'text-muted-foreground'
+          )} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-2 mb-1">
-            <span className="font-medium text-sm truncate">{template.name}</span>
-            <span className="text-xs text-muted-foreground">{template.language}</span>
-          </div>
+          <p className="font-semibold text-sm truncate mb-1.5" title={template.name}>
+            {template.name}
+          </p>
           <div className="flex flex-wrap gap-1.5">
             <span className={cn('inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border', status.color)}>
               {status.icon}
@@ -114,45 +131,65 @@ function TemplateCard({ template }: { template: MetaTemplate }) {
             <span className={cn('text-xs font-medium px-2 py-0.5 rounded-full border', CATEGORY_COLOR[template.category] ?? 'text-gray-600 bg-gray-50 border-gray-200')}>
               {CATEGORY_LABEL[template.category] ?? template.category}
             </span>
+            <span className="text-xs text-muted-foreground px-1.5 py-0.5 rounded-full bg-muted/60">
+              {template.language}
+            </span>
+            {hasMedia && (
+              <span className="text-xs text-muted-foreground px-1.5 py-0.5 rounded-full bg-muted/60">
+                {headerComponent.format === 'IMAGE' ? '🖼️' : headerComponent.format === 'VIDEO' ? '🎬' : '📄'}
+              </span>
+            )}
+            {buttonsComponent?.buttons && buttonsComponent.buttons.length > 0 && (
+              <span className="text-xs text-muted-foreground px-1.5 py-0.5 rounded-full bg-muted/60">
+                {buttonsComponent.buttons.length} botão(ões)
+              </span>
+            )}
           </div>
         </div>
         <ChevronDown className={cn('w-4 h-4 text-muted-foreground flex-shrink-0 transition-transform mt-1', expanded && 'rotate-180')} />
       </div>
 
+      {/* Body preview (collapsed) */}
       {bodyComponent?.text && !expanded && (
-        <div className="px-4 pb-3 -mt-1">
-          <p className="text-xs text-muted-foreground line-clamp-2 pl-12">{bodyComponent.text}</p>
+        <div className="px-4 pb-4 -mt-1">
+          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+            {bodyComponent.text}
+          </p>
         </div>
       )}
 
+      {/* Expanded: WhatsApp preview */}
       {expanded && (
-        <div className="border-t mx-4 mb-4 pt-3 space-y-3">
+        <div className="border-t px-4 pb-4 pt-3 space-y-3">
           <div className="bg-[#e5ddd5] rounded-xl p-3">
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden max-w-xs">
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
               {headerComponent && (
-                <div className="p-3 pb-1 border-b border-gray-100">
+                <div className="px-3 pt-3 pb-2 border-b border-gray-100">
                   {headerComponent.format === 'TEXT' ? (
                     <p className="font-semibold text-sm">{headerComponent.text}</p>
                   ) : (
-                    <p className="text-xs text-muted-foreground italic">[{headerComponent.format}]</p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground italic">
+                      <span>{headerComponent.format === 'IMAGE' ? '🖼️' : headerComponent.format === 'VIDEO' ? '🎬' : '📄'}</span>
+                      <span>{headerComponent.format}</span>
+                    </div>
                   )}
                 </div>
               )}
               {bodyComponent?.text && (
-                <div className="p-3 pb-1">
-                  <p className="text-sm whitespace-pre-wrap">{bodyComponent.text}</p>
+                <div className="px-3 py-2.5">
+                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{bodyComponent.text}</p>
                 </div>
               )}
               {footerComponent?.text && (
-                <div className="px-3 pb-2">
-                  <p className="text-xs text-gray-500">{footerComponent.text}</p>
+                <div className="px-3 pb-2.5">
+                  <p className="text-xs text-gray-400">{footerComponent.text}</p>
                 </div>
               )}
               {buttonsComponent?.buttons && buttonsComponent.buttons.length > 0 && (
                 <div className="border-t border-gray-100">
                   {buttonsComponent.buttons.map((btn, i) => (
-                    <div key={i} className="text-center py-2 border-b border-gray-100 last:border-0">
-                      <span className="text-xs font-medium text-blue-500">{btn.text}</span>
+                    <div key={i} className="text-center py-2.5 border-b border-gray-50 last:border-0">
+                      <span className="text-xs font-semibold text-blue-500">{btn.text}</span>
                     </div>
                   ))}
                 </div>
@@ -161,15 +198,13 @@ function TemplateCard({ template }: { template: MetaTemplate }) {
           </div>
 
           {template.rejected_reason && (
-            <div className="flex items-start gap-2 text-xs text-red-600 bg-red-50 rounded-lg p-2 border border-red-100">
+            <div className="flex items-start gap-2 text-xs text-red-600 bg-red-50 rounded-lg p-2.5 border border-red-100">
               <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
               <span>{template.rejected_reason}</span>
             </div>
           )}
 
-          <div className="text-xs text-muted-foreground">
-            <span className="font-medium">ID:</span> {template.id}
-          </div>
+          <p className="text-xs text-muted-foreground font-mono">ID: {template.id}</p>
         </div>
       )}
     </div>
@@ -214,54 +249,62 @@ function TemplatesPanel({ account }: { account: WabaAccount }) {
   ];
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="border-b pb-4 mb-4">
-        <h2 className="font-semibold text-lg">{account.projectName}</h2>
-        <p className="text-sm text-muted-foreground">WABA: {account.wabaId}</p>
-        {account.numberNames.length > 0 && (
-          <p className="text-xs text-muted-foreground mt-0.5">{account.numberNames.join(' · ')}</p>
-        )}
-      </div>
-
-      <div className="flex flex-col sm:flex-row gap-2 mb-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+    <div className="flex flex-col h-full gap-4">
+      {/* Header + search bar in one row */}
+      <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline gap-2">
+            <h2 className="font-bold text-xl truncate">{account.projectName}</h2>
+            {!isLoading && (
+              <span className="text-sm text-muted-foreground shrink-0">{templates.length} templates</span>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground truncate">
+            WABA {account.wabaId}
+            {account.numberNames.length > 0 && <> · {account.numberNames.join(' · ')}</>}
+          </p>
+        </div>
+        <div className="relative w-56 shrink-0">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input
-            placeholder="Buscar template..."
+            placeholder="Buscar..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="pl-9 h-9"
+            className="pl-8 h-8 text-sm"
           />
-        </div>
-        <div className="flex gap-1 flex-wrap">
-          {filterOptions.map(opt => (
-            <button
-              key={opt.key}
-              onClick={() => setStatusFilter(opt.key)}
-              className={cn(
-                'px-2.5 py-1 rounded-lg text-xs font-medium transition-colors border',
-                statusFilter === opt.key
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-background text-muted-foreground border-border hover:border-primary/40'
-              )}
-            >
-              {opt.label}
-              {counts[opt.key] !== undefined && (
-                <span className={cn('ml-1', statusFilter === opt.key ? 'opacity-80' : 'opacity-60')}>
-                  ({counts[opt.key] ?? 0})
-                </span>
-              )}
-            </button>
-          ))}
         </div>
       </div>
 
+      {/* Filter chips */}
+      <div className="flex gap-1.5 flex-wrap flex-shrink-0 -mt-1">
+        {filterOptions.map(opt => (
+          <button
+            key={opt.key}
+            onClick={() => setStatusFilter(opt.key)}
+            className={cn(
+              'px-3 py-1 rounded-full text-xs font-medium transition-all border',
+              statusFilter === opt.key
+                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                : 'bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-foreground'
+            )}
+          >
+            {opt.label}
+            {counts[opt.key] !== undefined && (
+              <span className={cn('ml-1.5 font-normal', statusFilter === opt.key ? 'opacity-75' : 'opacity-50')}>
+                {counts[opt.key] ?? 0}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
       {isLoading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
+          {Array.from({ length: 9 }).map((_, i) => <Skeleton key={i} className="h-28 w-full rounded-xl" />)}
         </div>
       ) : isError ? (
-        <div className="flex flex-col items-center justify-center flex-1 gap-3 py-12 text-center">
+        <div className="flex flex-col items-center justify-center flex-1 gap-3 py-16 text-center">
           <AlertCircle className="w-10 h-10 text-destructive/60" />
           <div>
             <p className="font-medium text-sm">Erro ao buscar templates</p>
@@ -269,15 +312,15 @@ function TemplatesPanel({ account }: { account: WabaAccount }) {
           </div>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center flex-1 gap-3 py-12 text-center">
+        <div className="flex flex-col items-center justify-center flex-1 gap-3 py-16 text-center">
           <MessageSquare className="w-10 h-10 text-muted-foreground/40" />
           <p className="text-sm text-muted-foreground">
             {templates.length === 0 ? 'Nenhum template nesta WABA.' : 'Nenhum template corresponde ao filtro.'}
           </p>
         </div>
       ) : (
-        <ScrollArea className="flex-1 -mr-2 pr-2">
-          <div className="space-y-3 pb-4">
+        <ScrollArea className="flex-1 -mr-3 pr-3">
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 pb-4">
             {filtered.map(template => (
               <TemplateCard key={`${template.id}-${template.language}`} template={template} />
             ))}
