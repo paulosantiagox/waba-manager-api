@@ -55,6 +55,7 @@ interface FormValues {
   headerFormat: 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT';
   headerText: string;
   headerExample: string;
+  headerMediaUrl: string;
   body: string;
   bodyExamples: { value: string }[];
   footerEnabled: boolean;
@@ -266,9 +267,13 @@ function buildComponents(values: FormValues): MetaTemplateComponent[] {
     const header: MetaTemplateComponent = { type: 'HEADER', format: values.headerFormat };
     if (values.headerFormat === 'TEXT') {
       header.text = values.headerText;
-      // Include example if header has {{1}}
       if (values.headerText.includes('{{1}}') && values.headerExample?.trim()) {
         header.example = { header_text: [values.headerExample.trim()] };
+      }
+    } else {
+      // IMAGE, VIDEO, DOCUMENT — provide public URL as example handle
+      if (values.headerMediaUrl?.trim()) {
+        header.example = { header_handle: [values.headerMediaUrl.trim()] };
       }
     }
     components.push(header);
@@ -317,6 +322,7 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts }: Props
       headerFormat: 'TEXT',
       headerText: '',
       headerExample: '',
+      headerMediaUrl: '',
       body: '',
       bodyExamples: [],
       footerEnabled: false,
@@ -646,9 +652,31 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts }: Props
                         </div>
                       )}
                       {watchValues.headerFormat !== 'TEXT' && (
-                        <p className="text-xs text-muted-foreground italic">
-                          Mídia será adicionada via URL no momento do envio.
-                        </p>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 rounded-lg px-3 py-2">
+                            {watchValues.headerFormat === 'IMAGE' && <span>🖼️</span>}
+                            {watchValues.headerFormat === 'VIDEO' && <span>🎬</span>}
+                            {watchValues.headerFormat === 'DOCUMENT' && <span>📄</span>}
+                            <span>
+                              A Meta exige uma URL pública de exemplo para aprovar templates com mídia.
+                              Você pode usar qualquer URL acessível.
+                            </span>
+                          </div>
+                          <Input
+                            {...register('headerMediaUrl')}
+                            placeholder={
+                              watchValues.headerFormat === 'IMAGE'
+                                ? 'https://exemplo.com/imagem.jpg'
+                                : watchValues.headerFormat === 'VIDEO'
+                                ? 'https://exemplo.com/video.mp4'
+                                : 'https://exemplo.com/documento.pdf'
+                            }
+                            className="text-sm"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Esta URL é usada apenas como exemplo na criação. A mídia real é enviada no momento do disparo.
+                          </p>
+                        </div>
                       )}
                     </div>
                   )}
