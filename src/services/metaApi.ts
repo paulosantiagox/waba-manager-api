@@ -190,19 +190,46 @@ export const createWabaTemplate = async (
 ): Promise<CreateTemplateResult> => {
   const url = `${META_API_BASE}/${wabaId}/message_templates`;
 
+  // Strip undefined/empty optional fields from buttons to avoid Meta rejecting them
+  const cleanedPayload = {
+    ...payload,
+    components: payload.components.map(c => {
+      if (c.type !== 'BUTTONS' || !c.buttons) return c;
+      return {
+        ...c,
+        buttons: c.buttons.map(btn => {
+          const b: Record<string, string> = { type: btn.type, text: btn.text };
+          if (btn.url) b.url = btn.url;
+          if (btn.phone_number) b.phone_number = btn.phone_number;
+          return b;
+        }),
+      };
+    }),
+  };
+
+  console.log('[META] Creating template payload:', JSON.stringify(cleanedPayload, null, 2));
+
   const response = await fetch(url, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(cleanedPayload),
   });
 
   const json = await response.json();
 
   if (!response.ok) {
-    throw new Error(json.error?.message ?? `Erro ${response.status} ao criar template`);
+    // Extract the most detailed error message available from Meta
+    const details =
+      json.error?.error_data?.details ||
+      json.error?.error_user_msg ||
+      json.error?.message ||
+      `Erro ${response.status}`;
+
+    console.error('[META] Template creation error:', JSON.stringify(json, null, 2));
+    throw new Error(details);
   }
 
   return {
