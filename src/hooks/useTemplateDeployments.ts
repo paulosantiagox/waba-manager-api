@@ -104,6 +104,39 @@ export function useSaveDeployment() {
   });
 }
 
+export interface TemplateBroadcastStats {
+  templateName: string;
+  broadcastCount: number;
+  totalContacts: number;
+}
+
+export function useTemplateBroadcastStats() {
+  return useQuery({
+    queryKey: ['template-broadcast-stats'],
+    queryFn: async (): Promise<Map<string, TemplateBroadcastStats>> => {
+      const { data, error } = await supabase
+        .from('waba_broadcasts')
+        .select('template_used, contact_count')
+        .not('template_used', 'is', null)
+        .not('status', 'eq', 'cancelled');
+
+      if (error) throw error;
+
+      const map = new Map<string, TemplateBroadcastStats>();
+      for (const row of data ?? []) {
+        const name = row.template_used as string;
+        if (!name) continue;
+        const existing = map.get(name) ?? { templateName: name, broadcastCount: 0, totalContacts: 0 };
+        existing.broadcastCount += 1;
+        existing.totalContacts += (row.contact_count as number) ?? 0;
+        map.set(name, existing);
+      }
+      return map;
+    },
+    staleTime: 60000,
+  });
+}
+
 export function useRefreshDeploymentStatus() {
   const queryClient = useQueryClient();
 

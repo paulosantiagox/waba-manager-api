@@ -28,7 +28,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import TemplateCreatorDrawer from '@/components/templates/TemplateCreatorDrawer';
-import { useTemplateDeployments, useRefreshDeploymentStatus, TemplateDeployment } from '@/hooks/useTemplateDeployments';
+import { useTemplateDeployments, useRefreshDeploymentStatus, useTemplateBroadcastStats, TemplateBroadcastStats, TemplateDeployment } from '@/hooks/useTemplateDeployments';
 import { useWabaAccounts as useAccounts } from '@/hooks/useWabaTemplates';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -85,7 +85,7 @@ const CATEGORY_COLOR: Record<string, string> = {
 
 // ─── Template Card ────────────────────────────────────────────────────────────
 
-function TemplateCard({ template }: { template: MetaTemplate }) {
+function TemplateCard({ template, broadcastStats }: { template: MetaTemplate; broadcastStats?: TemplateBroadcastStats }) {
   const [expanded, setExpanded] = useState(false);
   const status = STATUS_CONFIG[template.status] ?? STATUS_CONFIG.DISABLED;
 
@@ -144,6 +144,11 @@ function TemplateCard({ template }: { template: MetaTemplate }) {
             {buttonsComponent?.buttons && buttonsComponent.buttons.length > 0 && (
               <span className="text-xs text-muted-foreground px-1.5 py-0.5 rounded-full bg-muted/60">
                 {buttonsComponent.buttons.length} botão(ões)
+              </span>
+            )}
+            {broadcastStats && broadcastStats.broadcastCount > 0 && (
+              <span className="text-xs text-indigo-600 px-1.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-100 font-medium" title={`${broadcastStats.totalContacts.toLocaleString('pt-BR')} contatos no total`}>
+                {broadcastStats.broadcastCount} disparo{broadcastStats.broadcastCount !== 1 ? 's' : ''} · {broadcastStats.totalContacts.toLocaleString('pt-BR')} contatos
               </span>
             )}
           </div>
@@ -225,6 +230,7 @@ function TemplatesPanel({ account }: { account: WabaAccount }) {
     account.wabaId,
     account.accessToken
   );
+  const { data: broadcastStatsMap } = useTemplateBroadcastStats();
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ['waba-templates', account.wabaId] });
@@ -389,7 +395,7 @@ function TemplatesPanel({ account }: { account: WabaAccount }) {
         <div className="mt-2">
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 pb-6">
             {filtered.map(template => (
-              <TemplateCard key={`${template.id}-${template.language}`} template={template} />
+              <TemplateCard key={`${template.id}-${template.language}`} template={template} broadcastStats={broadcastStatsMap?.get(template.name)} />
             ))}
           </div>
         </div>
