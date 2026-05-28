@@ -168,6 +168,50 @@ export const fetchWabaTemplates = async (
   return data.data || [];
 };
 
+// ─── Template creation ────────────────────────────────────────────────────────
+
+export interface CreateTemplatePayload {
+  name: string;
+  category: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION';
+  language: string;
+  components: MetaTemplateComponent[];
+}
+
+export interface CreateTemplateResult {
+  id: string;
+  status: MetaTemplate['status'];
+  category: MetaTemplate['category'];
+}
+
+export const createWabaTemplate = async (
+  wabaId: string,
+  accessToken: string,
+  payload: CreateTemplatePayload
+): Promise<CreateTemplateResult> => {
+  const url = `${META_API_BASE}/${wabaId}/message_templates`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const json = await response.json();
+
+  if (!response.ok) {
+    throw new Error(json.error?.message ?? `Erro ${response.status} ao criar template`);
+  }
+
+  return {
+    id: json.id,
+    status: json.status ?? 'PENDING',
+    category: json.category ?? payload.category,
+  };
+};
+
 // Fetch WABA name
 export const fetchWABAName = async (
   wabaId: string,

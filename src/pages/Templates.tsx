@@ -3,9 +3,11 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useWabaAccounts, useTemplatesForWaba, WabaAccount } from '@/hooks/useWabaTemplates';
 import { MetaTemplate } from '@/services/metaApi';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   ChevronDown,
   ChevronRight,
@@ -17,48 +19,51 @@ import {
   XCircle,
   PauseCircle,
   MessageSquare,
+  Plus,
+  History,
+  AlertTriangle,
+  RefreshCw,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import TemplateCreatorDrawer from '@/components/templates/TemplateCreatorDrawer';
+import { useTemplateDeployments, useRefreshDeploymentStatus, TemplateDeployment } from '@/hooks/useTemplateDeployments';
+import { useWabaAccounts as useAccounts } from '@/hooks/useWabaTemplates';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 // ─── Status helpers ───────────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<
   MetaTemplate['status'],
-  { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: React.ReactNode; color: string }
+  { label: string; icon: React.ReactNode; color: string }
 > = {
   APPROVED: {
     label: 'Aprovado',
-    variant: 'default',
     icon: <CheckCircle2 className="w-3 h-3" />,
     color: 'text-green-600 bg-green-50 border-green-200',
   },
   PENDING: {
     label: 'Pendente',
-    variant: 'secondary',
     icon: <Clock className="w-3 h-3" />,
     color: 'text-yellow-600 bg-yellow-50 border-yellow-200',
   },
   IN_APPEAL: {
     label: 'Em recurso',
-    variant: 'secondary',
     icon: <Clock className="w-3 h-3" />,
     color: 'text-blue-600 bg-blue-50 border-blue-200',
   },
   REJECTED: {
     label: 'Rejeitado',
-    variant: 'destructive',
     icon: <XCircle className="w-3 h-3" />,
     color: 'text-red-600 bg-red-50 border-red-200',
   },
   DISABLED: {
     label: 'Desativado',
-    variant: 'outline',
     icon: <PauseCircle className="w-3 h-3" />,
     color: 'text-gray-500 bg-gray-50 border-gray-200',
   },
   PAUSED: {
     label: 'Pausado',
-    variant: 'outline',
     icon: <PauseCircle className="w-3 h-3" />,
     color: 'text-orange-600 bg-orange-50 border-orange-200',
   },
@@ -89,7 +94,6 @@ function TemplateCard({ template }: { template: MetaTemplate }) {
 
   return (
     <div className="border rounded-xl bg-card hover:shadow-sm transition-shadow">
-      {/* Header row */}
       <div
         className="flex items-start gap-3 p-4 cursor-pointer"
         onClick={() => setExpanded(v => !v)}
@@ -115,28 +119,22 @@ function TemplateCard({ template }: { template: MetaTemplate }) {
         <ChevronDown className={cn('w-4 h-4 text-muted-foreground flex-shrink-0 transition-transform mt-1', expanded && 'rotate-180')} />
       </div>
 
-      {/* Preview body text even when collapsed */}
       {bodyComponent?.text && !expanded && (
         <div className="px-4 pb-3 -mt-1">
           <p className="text-xs text-muted-foreground line-clamp-2 pl-12">{bodyComponent.text}</p>
         </div>
       )}
 
-      {/* Expanded content */}
       {expanded && (
         <div className="border-t mx-4 mb-4 pt-3 space-y-3">
-          {/* WhatsApp-like preview */}
           <div className="bg-[#e5ddd5] rounded-xl p-3">
             <div className="bg-white rounded-lg shadow-sm overflow-hidden max-w-xs">
               {headerComponent && (
                 <div className="p-3 pb-1 border-b border-gray-100">
-                  {headerComponent.format === 'TEXT' && (
+                  {headerComponent.format === 'TEXT' ? (
                     <p className="font-semibold text-sm">{headerComponent.text}</p>
-                  )}
-                  {headerComponent.format && headerComponent.format !== 'TEXT' && (
-                    <p className="text-xs text-muted-foreground italic">
-                      [{headerComponent.format}]
-                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">[{headerComponent.format}]</p>
                   )}
                 </div>
               )}
@@ -178,7 +176,7 @@ function TemplateCard({ template }: { template: MetaTemplate }) {
   );
 }
 
-// ─── Templates panel (right side) ────────────────────────────────────────────
+// ─── Templates panel ──────────────────────────────────────────────────────────
 
 function TemplatesPanel({ account }: { account: WabaAccount }) {
   const [search, setSearch] = useState('');
@@ -202,9 +200,7 @@ function TemplatesPanel({ account }: { account: WabaAccount }) {
 
   const counts = useMemo(() => {
     const result: Record<string, number> = { ALL: templates.length };
-    for (const t of templates) {
-      result[t.status] = (result[t.status] ?? 0) + 1;
-    }
+    for (const t of templates) result[t.status] = (result[t.status] ?? 0) + 1;
     return result;
   }, [templates]);
 
@@ -219,18 +215,14 @@ function TemplatesPanel({ account }: { account: WabaAccount }) {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Panel header */}
       <div className="border-b pb-4 mb-4">
         <h2 className="font-semibold text-lg">{account.projectName}</h2>
         <p className="text-sm text-muted-foreground">WABA: {account.wabaId}</p>
         {account.numberNames.length > 0 && (
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {account.numberNames.join(' · ')}
-          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">{account.numberNames.join(' · ')}</p>
         )}
       </div>
 
-      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-2 mb-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -264,30 +256,23 @@ function TemplatesPanel({ account }: { account: WabaAccount }) {
         </div>
       </div>
 
-      {/* Content */}
       {isLoading ? (
         <div className="space-y-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-24 w-full rounded-xl" />
-          ))}
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}
         </div>
       ) : isError ? (
         <div className="flex flex-col items-center justify-center flex-1 gap-3 py-12 text-center">
           <AlertCircle className="w-10 h-10 text-destructive/60" />
           <div>
             <p className="font-medium text-sm">Erro ao buscar templates</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {(error as Error)?.message ?? 'Verifique o token de acesso desta BM.'}
-            </p>
+            <p className="text-xs text-muted-foreground mt-1">{(error as Error)?.message ?? 'Verifique o token de acesso.'}</p>
           </div>
         </div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center flex-1 gap-3 py-12 text-center">
           <MessageSquare className="w-10 h-10 text-muted-foreground/40" />
           <p className="text-sm text-muted-foreground">
-            {templates.length === 0
-              ? 'Nenhum template encontrado nesta WABA.'
-              : 'Nenhum template corresponde ao filtro.'}
+            {templates.length === 0 ? 'Nenhum template nesta WABA.' : 'Nenhum template corresponde ao filtro.'}
           </p>
         </div>
       ) : (
@@ -303,7 +288,7 @@ function TemplatesPanel({ account }: { account: WabaAccount }) {
   );
 }
 
-// ─── Sidebar account tree ─────────────────────────────────────────────────────
+// ─── Account tree sidebar ─────────────────────────────────────────────────────
 
 function AccountTree({
   accounts,
@@ -314,26 +299,22 @@ function AccountTree({
   selectedWabaId: string | null;
   onSelect: (account: WabaAccount) => void;
 }) {
-  // Group by project
   const byProject = useMemo(() => {
     const map = new Map<string, { name: string; accounts: WabaAccount[] }>();
     for (const acc of accounts) {
-      if (!map.has(acc.projectId)) {
-        map.set(acc.projectId, { name: acc.projectName, accounts: [] });
-      }
+      if (!map.has(acc.projectId)) map.set(acc.projectId, { name: acc.projectName, accounts: [] });
       map.get(acc.projectId)!.accounts.push(acc);
     }
     return Array.from(map.values());
   }, [accounts]);
 
   const [openProjects, setOpenProjects] = useState<Set<string>>(() => {
-    // Open all by default
     const s = new Set<string>();
     accounts.forEach(a => s.add(a.projectId));
     return s;
   });
 
-  const toggleProject = (id: string) => {
+  const toggle = (id: string) => {
     setOpenProjects(prev => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
@@ -345,9 +326,8 @@ function AccountTree({
     <div className="space-y-1">
       {byProject.map(group => (
         <div key={group.name}>
-          {/* Project header */}
           <button
-            onClick={() => toggleProject(group.accounts[0].projectId)}
+            onClick={() => toggle(group.accounts[0].projectId)}
             className="flex items-center gap-2 w-full px-3 py-2 rounded-lg hover:bg-accent transition-colors text-sm font-semibold text-foreground/80"
           >
             {openProjects.has(group.accounts[0].projectId)
@@ -356,7 +336,6 @@ function AccountTree({
             <span className="truncate">{group.name}</span>
           </button>
 
-          {/* WABA accounts under this project */}
           {openProjects.has(group.accounts[0].projectId) && (
             <div className="ml-4 space-y-0.5">
               {group.accounts.map(acc => (
@@ -372,9 +351,7 @@ function AccountTree({
                 >
                   <MessageSquare className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
                   <div className="min-w-0">
-                    <p className="truncate text-xs font-medium">
-                      {acc.numberNames[0] ?? acc.wabaId}
-                    </p>
+                    <p className="truncate text-xs font-medium">{acc.numberNames[0] ?? acc.wabaId}</p>
                     {acc.numberNames.length > 1 && (
                       <p className={cn('text-xs', selectedWabaId === acc.wabaId ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
                         +{acc.numberNames.length - 1} número(s)
@@ -394,13 +371,125 @@ function AccountTree({
   );
 }
 
+// ─── Deployment History ───────────────────────────────────────────────────────
+
+function statusColor(status: string) {
+  switch (status) {
+    case 'APPROVED': return 'text-green-600 bg-green-50 border-green-200';
+    case 'PENDING': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+    case 'REJECTED': return 'text-red-600 bg-red-50 border-red-200';
+    case 'ERROR': return 'text-red-700 bg-red-100 border-red-300';
+    case 'PAUSED': return 'text-orange-600 bg-orange-50 border-orange-200';
+    default: return 'text-gray-500 bg-gray-50 border-gray-200';
+  }
+}
+
+function DeploymentHistory({ accounts }: { accounts: WabaAccount[] }) {
+  const { data: deployments = [], isLoading } = useTemplateDeployments();
+  const { mutate: refreshStatus, isPending: refreshing } = useRefreshDeploymentStatus();
+  const [refreshingId, setRefreshingId] = useState<string | null>(null);
+
+  // Build wabaId → accessToken map
+  const tokenMap = useMemo(() => {
+    const m = new Map<string, string>();
+    accounts.forEach(a => m.set(a.wabaId, a.accessToken));
+    return m;
+  }, [accounts]);
+
+  const handleRefresh = (d: TemplateDeployment) => {
+    const token = tokenMap.get(d.wabaId);
+    if (!token) return;
+    setRefreshingId(d.id);
+    refreshStatus(
+      { deploymentId: d.id, wabaId: d.wabaId, accessToken: token, templateName: d.templateName },
+      { onSettled: () => setRefreshingId(null) }
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3 p-4">
+        {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}
+      </div>
+    );
+  }
+
+  if (deployments.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-3 text-center">
+        <History className="w-10 h-10 text-muted-foreground/30" />
+        <p className="text-sm text-muted-foreground">Nenhum deploy registrado ainda.</p>
+      </div>
+    );
+  }
+
+  return (
+    <ScrollArea className="flex-1">
+      <div className="space-y-2 p-4">
+        {deployments.map(d => (
+          <div key={d.id} className="border rounded-xl p-3 bg-card hover:shadow-sm transition-shadow">
+            <div className="flex items-start gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <span className="font-medium text-sm font-mono">{d.templateName}</span>
+                  {d.categoryChanged && (
+                    <span className="inline-flex items-center gap-1 text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 px-1.5 py-0.5 rounded-full">
+                      <AlertTriangle className="w-3 h-3" />
+                      Categoria alterada
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-1.5 mb-1.5">
+                  <span className={cn('text-xs font-medium px-2 py-0.5 rounded-full border', statusColor(d.status))}>
+                    {d.status}
+                  </span>
+                  {d.categoryChanged && d.actualCategory && (
+                    <>
+                      <span className={cn('text-xs px-2 py-0.5 rounded-full border', CATEGORY_COLOR[d.requestedCategory] ?? '')}>
+                        ← {CATEGORY_LABEL[d.requestedCategory] ?? d.requestedCategory}
+                      </span>
+                      <span className={cn('text-xs px-2 py-0.5 rounded-full border', CATEGORY_COLOR[d.actualCategory] ?? '')}>
+                        {CATEGORY_LABEL[d.actualCategory] ?? d.actualCategory}
+                      </span>
+                    </>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {d.projectName} · WABA {d.wabaId}
+                  {d.metaTemplateId && <> · ID: {d.metaTemplateId}</>}
+                </p>
+                {d.errorMessage && (
+                  <p className="text-xs text-red-600 mt-1">{d.errorMessage}</p>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">
+                  {formatDistanceToNow(new Date(d.createdAt), { addSuffix: true, locale: ptBR })}
+                </p>
+              </div>
+              {d.metaTemplateId && tokenMap.has(d.wabaId) && (
+                <button
+                  onClick={() => handleRefresh(d)}
+                  disabled={refreshingId === d.id}
+                  className="flex items-center justify-center p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50"
+                  title="Atualizar status"
+                >
+                  <RefreshCw className={cn('w-3.5 h-3.5', refreshingId === d.id && 'animate-spin')} />
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </ScrollArea>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Templates() {
   const { data: accounts = [], isLoading: loadingAccounts } = useWabaAccounts();
   const [selectedAccount, setSelectedAccount] = useState<WabaAccount | null>(null);
+  const [creatorOpen, setCreatorOpen] = useState(false);
 
-  // Auto-select first account when loaded
   const resolvedAccount = selectedAccount ?? accounts[0] ?? null;
 
   return (
@@ -408,16 +497,24 @@ export default function Templates() {
       <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
         {/* Left sidebar */}
         <aside className="w-64 flex-shrink-0 border-r bg-card/50 flex flex-col">
-          <div className="p-4 border-b">
-            <h1 className="font-bold text-base">Templates</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">Contas WhatsApp</p>
+          <div className="p-4 border-b flex items-center justify-between">
+            <div>
+              <h1 className="font-bold text-base">Templates</h1>
+              <p className="text-xs text-muted-foreground mt-0.5">Contas WhatsApp</p>
+            </div>
+            <Button
+              size="sm"
+              className="h-8 px-2.5 gap-1.5 text-xs"
+              onClick={() => setCreatorOpen(true)}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Criar
+            </Button>
           </div>
           <ScrollArea className="flex-1 p-2">
             {loadingAccounts ? (
               <div className="space-y-2 p-2">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} className="h-10 w-full rounded-lg" />
-                ))}
+                {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 w-full rounded-lg" />)}
               </div>
             ) : accounts.length === 0 ? (
               <div className="p-4 text-center">
@@ -436,22 +533,49 @@ export default function Templates() {
         </aside>
 
         {/* Main content */}
-        <main className="flex-1 overflow-hidden p-6">
-          {resolvedAccount ? (
-            <TemplatesPanel key={resolvedAccount.wabaId} account={resolvedAccount} />
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
-              <MessageSquare className="w-14 h-14 text-muted-foreground/30" />
-              <div>
-                <p className="font-medium">Selecione uma conta</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Escolha uma WABA na lista à esquerda para ver os templates.
-                </p>
-              </div>
+        <main className="flex-1 overflow-hidden flex flex-col">
+          <Tabs defaultValue="templates" className="flex flex-col h-full">
+            <div className="border-b px-6 pt-4 flex-shrink-0">
+              <TabsList className="h-9">
+                <TabsTrigger value="templates" className="text-xs gap-1.5">
+                  <FileText className="w-3.5 h-3.5" />
+                  Templates
+                </TabsTrigger>
+                <TabsTrigger value="history" className="text-xs gap-1.5">
+                  <History className="w-3.5 h-3.5" />
+                  Histórico de Deploy
+                </TabsTrigger>
+              </TabsList>
             </div>
-          )}
+
+            <TabsContent value="templates" className="flex-1 overflow-hidden p-6 mt-0">
+              {resolvedAccount ? (
+                <TemplatesPanel key={resolvedAccount.wabaId} account={resolvedAccount} />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
+                  <MessageSquare className="w-14 h-14 text-muted-foreground/30" />
+                  <div>
+                    <p className="font-medium">Selecione uma conta</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Escolha uma WABA na lista à esquerda para ver os templates.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="history" className="flex-1 overflow-hidden mt-0 flex flex-col">
+              <DeploymentHistory accounts={accounts} />
+            </TabsContent>
+          </Tabs>
         </main>
       </div>
+
+      <TemplateCreatorDrawer
+        open={creatorOpen}
+        onClose={() => setCreatorOpen(false)}
+        accounts={accounts}
+      />
     </DashboardLayout>
   );
 }
