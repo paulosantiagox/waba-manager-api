@@ -143,7 +143,7 @@ function TemplateCard({ template, broadcastStats }: { template: MetaTemplate; br
             )}
             {buttonsComponent?.buttons && buttonsComponent.buttons.length > 0 && (
               <span className="text-xs text-muted-foreground px-1.5 py-0.5 rounded-full bg-muted/60">
-                {buttonsComponent.buttons.length} botão(ões)
+                {buttonsComponent.buttons.length} {buttonsComponent.buttons.length === 1 ? 'botão' : 'botões'}
               </span>
             )}
             {broadcastStats && broadcastStats.broadcastCount > 0 && (
@@ -593,7 +593,6 @@ function DeploymentHistory({ accounts }: { accounts: WabaAccount[] }) {
             </div>
           </div>
         ))}
-      </div>
     </div>
   );
 }
