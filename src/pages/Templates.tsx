@@ -467,8 +467,7 @@ function DeploymentHistory({ accounts }: { accounts: WabaAccount[] }) {
   }
 
   return (
-    <ScrollArea className="flex-1">
-      <div className="space-y-2 p-4">
+    <div className="space-y-2">
         {deployments.map(d => (
           <div key={d.id} className="border rounded-xl p-3 bg-card hover:shadow-sm transition-shadow">
             <div className="flex items-start gap-3">
@@ -522,7 +521,7 @@ function DeploymentHistory({ accounts }: { accounts: WabaAccount[] }) {
           </div>
         ))}
       </div>
-    </ScrollArea>
+    </div>
   );
 }
 
