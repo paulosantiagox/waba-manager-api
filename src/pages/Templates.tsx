@@ -249,7 +249,7 @@ function TemplatesPanel({ account }: { account: WabaAccount }) {
   ];
 
   return (
-    <div className="flex flex-col h-full min-h-0 gap-4">
+    <div className="flex flex-col gap-4">
       {/* Header + search bar in one row */}
       <div className="flex items-center gap-3 flex-shrink-0">
         <div className="min-w-0 flex-1">
@@ -319,7 +319,7 @@ function TemplatesPanel({ account }: { account: WabaAccount }) {
           </p>
         </div>
       ) : (
-        <div className="flex-1 min-h-0 overflow-y-auto -mr-3 pr-3">
+        <div className="mt-2">
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 pb-6">
             {filtered.map(template => (
               <TemplateCard key={`${template.id}-${template.language}`} template={template} />
@@ -535,35 +535,33 @@ export default function Templates() {
 
   const resolvedAccount = selectedAccount ?? accounts[0] ?? null;
 
+  const [activeTab, setActiveTab] = useState<'templates' | 'history'>('templates');
+
   return (
-    <DashboardLayout fullHeight>
-      <div className="flex h-full overflow-hidden">
-        {/* Left sidebar */}
-        <aside className="w-64 flex-shrink-0 border-r bg-card/50 flex flex-col">
+    <DashboardLayout>
+      {/* Two-column layout: sticky sidebar + scrollable content */}
+      <div className="flex gap-0 -m-8 min-h-screen">
+
+        {/* Sticky sidebar */}
+        <aside className="w-64 flex-shrink-0 border-r bg-card/50 sticky top-0 h-screen flex flex-col">
           <div className="p-4 border-b flex items-center justify-between">
             <div>
               <h1 className="font-bold text-base">Templates</h1>
               <p className="text-xs text-muted-foreground mt-0.5">Contas WhatsApp</p>
             </div>
-            <Button
-              size="sm"
-              className="h-8 px-2.5 gap-1.5 text-xs"
-              onClick={() => setCreatorOpen(true)}
-            >
+            <Button size="sm" className="h-8 px-2.5 gap-1.5 text-xs" onClick={() => setCreatorOpen(true)}>
               <Plus className="w-3.5 h-3.5" />
               Criar
             </Button>
           </div>
-          <ScrollArea className="flex-1 p-2">
+          <div className="flex-1 overflow-y-auto p-2">
             {loadingAccounts ? (
               <div className="space-y-2 p-2">
                 {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 w-full rounded-lg" />)}
               </div>
             ) : accounts.length === 0 ? (
               <div className="p-4 text-center">
-                <p className="text-xs text-muted-foreground">
-                  Nenhuma conta encontrada. Cadastre Business Managers nos seus projetos.
-                </p>
+                <p className="text-xs text-muted-foreground">Nenhuma conta encontrada.</p>
               </div>
             ) : (
               <AccountTree
@@ -572,46 +570,51 @@ export default function Templates() {
                 onSelect={setSelectedAccount}
               />
             )}
-          </ScrollArea>
+          </div>
         </aside>
 
-        {/* Main content */}
-        <main className="flex-1 overflow-hidden flex flex-col">
-          <Tabs defaultValue="templates" className="flex flex-col h-full">
-            <div className="border-b px-6 pt-4 flex-shrink-0">
-              <TabsList className="h-9">
-                <TabsTrigger value="templates" className="text-xs gap-1.5">
-                  <FileText className="w-3.5 h-3.5" />
-                  Templates
-                </TabsTrigger>
-                <TabsTrigger value="history" className="text-xs gap-1.5">
-                  <History className="w-3.5 h-3.5" />
-                  Histórico de Deploy
-                </TabsTrigger>
-              </TabsList>
+        {/* Main scrollable content */}
+        <div className="flex-1 flex flex-col">
+          {/* Tab bar — sticky */}
+          <div className="sticky top-0 z-10 bg-background border-b px-6 pt-4 pb-0">
+            <div className="flex gap-1">
+              {(['templates', 'history'] as const).map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={cn(
+                    'flex items-center gap-1.5 px-4 py-2 text-xs font-medium border-b-2 transition-colors',
+                    activeTab === tab
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  {tab === 'templates' ? <FileText className="w-3.5 h-3.5" /> : <History className="w-3.5 h-3.5" />}
+                  {tab === 'templates' ? 'Templates' : 'Histórico de Deploy'}
+                </button>
+              ))}
             </div>
+          </div>
 
-            <TabsContent value="templates" className="flex-1 overflow-hidden mt-0 flex flex-col min-h-0 p-6">
-              {resolvedAccount ? (
+          {/* Page content — scrolls naturally */}
+          <div className="flex-1 p-6">
+            {activeTab === 'templates' ? (
+              resolvedAccount ? (
                 <TemplatesPanel key={resolvedAccount.wabaId} account={resolvedAccount} />
               ) : (
-                <div className="flex flex-col items-center justify-center flex-1 gap-4 text-center">
+                <div className="flex flex-col items-center justify-center py-32 gap-4 text-center">
                   <MessageSquare className="w-14 h-14 text-muted-foreground/30" />
                   <div>
                     <p className="font-medium">Selecione uma conta</p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Escolha uma WABA na lista à esquerda para ver os templates.
-                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">Escolha uma WABA na lista à esquerda.</p>
                   </div>
                 </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="history" className="flex-1 overflow-hidden mt-0 flex flex-col min-h-0">
+              )
+            ) : (
               <DeploymentHistory accounts={accounts} />
-            </TabsContent>
-          </Tabs>
-        </main>
+            )}
+          </div>
+        </div>
       </div>
 
       <TemplateCreatorDrawer
