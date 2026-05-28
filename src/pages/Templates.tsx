@@ -249,7 +249,7 @@ function TemplatesPanel({ account }: { account: WabaAccount }) {
   ];
 
   return (
-    <div className="flex flex-col h-full gap-4">
+    <div className="flex flex-col h-full min-h-0 gap-4">
       {/* Header + search bar in one row */}
       <div className="flex items-center gap-3 flex-shrink-0">
         <div className="min-w-0 flex-1">
@@ -319,7 +319,7 @@ function TemplatesPanel({ account }: { account: WabaAccount }) {
           </p>
         </div>
       ) : (
-        <ScrollArea className="flex-1 -mr-3 pr-3">
+        <ScrollArea className="flex-1 min-h-0 -mr-3 pr-3">
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 pb-4">
             {filtered.map(template => (
               <TemplateCard key={`${template.id}-${template.language}`} template={template} />
@@ -591,11 +591,11 @@ export default function Templates() {
               </TabsList>
             </div>
 
-            <TabsContent value="templates" className="flex-1 overflow-hidden p-6 mt-0">
+            <TabsContent value="templates" className="flex-1 overflow-hidden mt-0 flex flex-col min-h-0 p-6">
               {resolvedAccount ? (
                 <TemplatesPanel key={resolvedAccount.wabaId} account={resolvedAccount} />
               ) : (
-                <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
+                <div className="flex flex-col items-center justify-center flex-1 gap-4 text-center">
                   <MessageSquare className="w-14 h-14 text-muted-foreground/30" />
                   <div>
                     <p className="font-medium">Selecione uma conta</p>
@@ -607,7 +607,7 @@ export default function Templates() {
               )}
             </TabsContent>
 
-            <TabsContent value="history" className="flex-1 overflow-hidden mt-0 flex flex-col">
+            <TabsContent value="history" className="flex-1 overflow-hidden mt-0 flex flex-col min-h-0">
               <DeploymentHistory accounts={accounts} />
             </TabsContent>
           </Tabs>
