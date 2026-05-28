@@ -95,7 +95,7 @@ export function useWabaAccounts() {
   });
 }
 
-// Fetch templates for a specific WABA
+// Fetch templates for a specific WABA — always fresh, no stale cache
 export function useTemplatesForWaba(wabaId: string | null, accessToken: string | null) {
   return useQuery({
     queryKey: ['waba-templates', wabaId],
@@ -104,7 +104,8 @@ export function useTemplatesForWaba(wabaId: string | null, accessToken: string |
       return fetchWabaTemplates(wabaId, accessToken);
     },
     enabled: !!wabaId && !!accessToken,
-    staleTime: 120000,
+    staleTime: 0,        // sempre considera stale — rebusca ao focar a janela
+    refetchOnWindowFocus: true,  // rebusca ao voltar para a aba
     retry: 1,
   });
 }

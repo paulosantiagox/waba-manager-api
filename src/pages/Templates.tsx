@@ -23,7 +23,9 @@ import {
   History,
   AlertTriangle,
   RefreshCw,
+  Loader2,
 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import TemplateCreatorDrawer from '@/components/templates/TemplateCreatorDrawer';
 import { useTemplateDeployments, useRefreshDeploymentStatus, TemplateDeployment } from '@/hooks/useTemplateDeployments';
@@ -216,11 +218,17 @@ function TemplateCard({ template }: { template: MetaTemplate }) {
 function TemplatesPanel({ account }: { account: WabaAccount }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
+  const queryClient = useQueryClient();
 
-  const { data: templates = [], isLoading, isError, error } = useTemplatesForWaba(
+  const { data: templates = [], isLoading, isFetching, isError, error, dataUpdatedAt } = useTemplatesForWaba(
     account.wabaId,
     account.accessToken
   );
+
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['waba-templates', account.wabaId] });
+  };
 
   const filtered = useMemo(() => {
     return templates.filter(t => {
@@ -229,17 +237,21 @@ function TemplatesPanel({ account }: { account: WabaAccount }) {
         t.name.toLowerCase().includes(search.toLowerCase()) ||
         t.components.some(c => c.text?.toLowerCase().includes(search.toLowerCase()));
       const matchesStatus = statusFilter === 'ALL' || t.status === statusFilter;
-      return matchesSearch && matchesStatus;
+      const matchesCategory = categoryFilter === 'ALL' || t.category === categoryFilter;
+      return matchesSearch && matchesStatus && matchesCategory;
     });
-  }, [templates, search, statusFilter]);
+  }, [templates, search, statusFilter, categoryFilter]);
 
   const counts = useMemo(() => {
     const result: Record<string, number> = { ALL: templates.length };
-    for (const t of templates) result[t.status] = (result[t.status] ?? 0) + 1;
+    for (const t of templates) {
+      result[t.status] = (result[t.status] ?? 0) + 1;
+      result[`cat_${t.category}`] = (result[`cat_${t.category}`] ?? 0) + 1;
+    }
     return result;
   }, [templates]);
 
-  const filterOptions = [
+  const statusOptions = [
     { key: 'ALL', label: 'Todos' },
     { key: 'APPROVED', label: 'Aprovados' },
     { key: 'PENDING', label: 'Pendentes' },
@@ -248,9 +260,20 @@ function TemplatesPanel({ account }: { account: WabaAccount }) {
     { key: 'DISABLED', label: 'Desativados' },
   ];
 
+  const categoryOptions = [
+    { key: 'ALL', label: 'Todas categorias', color: '' },
+    { key: 'UTILITY', label: 'Utilidade', color: 'text-blue-600 border-blue-300 bg-blue-50' },
+    { key: 'MARKETING', label: 'Marketing', color: 'text-purple-600 border-purple-300 bg-purple-50' },
+    { key: 'AUTHENTICATION', label: 'Autenticação', color: 'text-gray-600 border-gray-300 bg-gray-50' },
+  ];
+
+  const updatedAt = dataUpdatedAt
+    ? new Date(dataUpdatedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    : null;
+
   return (
     <div className="flex flex-col gap-4">
-      {/* Header + search bar in one row */}
+      {/* Header + search + refresh */}
       <div className="flex items-center gap-3 flex-shrink-0">
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
@@ -259,25 +282,69 @@ function TemplatesPanel({ account }: { account: WabaAccount }) {
               <span className="text-sm text-muted-foreground shrink-0">{templates.length} templates</span>
             )}
           </div>
-          <p className="text-xs text-muted-foreground truncate">
-            WABA {account.wabaId}
-            {account.numberNames.length > 0 && <> · {account.numberNames.join(' · ')}</>}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-xs text-muted-foreground truncate">
+              WABA {account.wabaId}
+              {account.numberNames.length > 0 && <> · {account.numberNames.join(' · ')}</>}
+            </p>
+            {updatedAt && (
+              <span className="text-xs text-muted-foreground shrink-0">
+                · atualizado às {updatedAt}
+              </span>
+            )}
+          </div>
         </div>
-        <div className="relative w-56 shrink-0">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-          <Input
-            placeholder="Buscar..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="pl-8 h-8 text-sm"
-          />
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={handleRefresh}
+            disabled={isFetching}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
+            title="Atualizar status dos templates"
+          >
+            {isFetching
+              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              : <RefreshCw className="w-3.5 h-3.5" />}
+            Atualizar
+          </button>
+          <div className="relative w-48">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <Input
+              placeholder="Buscar..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="pl-8 h-8 text-sm"
+            />
+          </div>
         </div>
       </div>
 
-      {/* Filter chips */}
-      <div className="flex gap-1.5 flex-wrap flex-shrink-0 -mt-1">
-        {filterOptions.map(opt => (
+      {/* Category quick filters */}
+      <div className="flex gap-2 flex-wrap -mt-1">
+        {categoryOptions.map(opt => (
+          <button
+            key={opt.key}
+            onClick={() => setCategoryFilter(opt.key)}
+            className={cn(
+              'px-3 py-1 rounded-full text-xs font-semibold transition-all border',
+              categoryFilter === opt.key
+                ? opt.color || 'bg-primary text-primary-foreground border-primary shadow-sm'
+                : 'bg-background text-muted-foreground border-border hover:border-primary/40'
+            )}
+          >
+            {opt.label}
+            {opt.key !== 'ALL' && counts[`cat_${opt.key}`] !== undefined && (
+              <span className="ml-1.5 font-normal opacity-70">{counts[`cat_${opt.key}`] ?? 0}</span>
+            )}
+            {opt.key === 'ALL' && (
+              <span className="ml-1.5 font-normal opacity-70">{templates.length}</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Status filter chips */}
+      <div className="flex gap-1.5 flex-wrap -mt-1">
+        {statusOptions.map(opt => (
           <button
             key={opt.key}
             onClick={() => setStatusFilter(opt.key)}
