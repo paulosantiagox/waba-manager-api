@@ -639,13 +639,12 @@ export default function Templates() {
                 <button
                   onClick={handleRefreshAll}
                   disabled={isRefreshing || !resolvedAccount}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-40"
+                  className="w-8 h-8 flex items-center justify-center rounded-lg border text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-40"
                   title="Atualizar status dos templates"
                 >
                   {isRefreshing
-                    ? <Loader2 className="w-3 h-3 animate-spin" />
-                    : <RefreshCw className="w-3 h-3" />}
-                  Atualizar
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <RefreshCw className="w-3.5 h-3.5" />}
                 </button>
                 <Button size="sm" className="h-8 px-2.5 gap-1.5 text-xs" onClick={() => setCreatorOpen(true)}>
                   <Plus className="w-3.5 h-3.5" />
