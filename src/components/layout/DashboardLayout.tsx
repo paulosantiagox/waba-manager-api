@@ -8,9 +8,10 @@ import { Menu } from 'lucide-react';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
+  fullHeight?: boolean;
 }
 
-const DashboardLayout = ({ children }: DashboardLayoutProps) => {
+const DashboardLayout = ({ children, fullHeight = false }: DashboardLayoutProps) => {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -57,15 +58,22 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         </button>
       )}
 
-      <main 
+      <main
         className={cn(
-          "min-h-screen transition-all duration-300",
+          "transition-all duration-300",
+          fullHeight ? "h-screen flex flex-col overflow-hidden" : "min-h-screen",
           isMobile ? "ml-0" : (sidebarCollapsed ? "ml-16" : "ml-64")
         )}
       >
-        <div className={cn(isMobile ? "p-4 pt-16" : "p-8")}>
-          {children}
-        </div>
+        {fullHeight ? (
+          <div className={cn("flex-1 overflow-hidden", isMobile && "pt-16")}>
+            {children}
+          </div>
+        ) : (
+          <div className={cn(isMobile ? "p-4 pt-16" : "p-8")}>
+            {children}
+          </div>
+        )}
       </main>
     </div>
   );

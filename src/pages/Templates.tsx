@@ -319,13 +319,13 @@ function TemplatesPanel({ account }: { account: WabaAccount }) {
           </p>
         </div>
       ) : (
-        <ScrollArea className="flex-1 min-h-0 -mr-3 pr-3">
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 pb-4">
+        <div className="flex-1 min-h-0 overflow-y-auto -mr-3 pr-3">
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 pb-6">
             {filtered.map(template => (
               <TemplateCard key={`${template.id}-${template.language}`} template={template} />
             ))}
           </div>
-        </ScrollArea>
+        </div>
       )}
     </div>
   );
@@ -536,8 +536,8 @@ export default function Templates() {
   const resolvedAccount = selectedAccount ?? accounts[0] ?? null;
 
   return (
-    <DashboardLayout>
-      <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
+    <DashboardLayout fullHeight>
+      <div className="flex h-full overflow-hidden">
         {/* Left sidebar */}
         <aside className="w-64 flex-shrink-0 border-r bg-card/50 flex flex-col">
           <div className="p-4 border-b flex items-center justify-between">
