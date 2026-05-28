@@ -604,10 +604,27 @@ export default function Templates() {
   const { data: accounts = [], isLoading: loadingAccounts } = useWabaAccounts();
   const [selectedAccount, setSelectedAccount] = useState<WabaAccount | null>(null);
   const [creatorOpen, setCreatorOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const resolvedAccount = selectedAccount ?? accounts[0] ?? null;
 
   const [activeTab, setActiveTab] = useState<'templates' | 'history'>('templates');
+
+  // Mirror the same query the TemplatesPanel uses — React Query deduplicates, no double fetch
+  const { isFetching: isRefreshing, dataUpdatedAt } = useTemplatesForWaba(
+    resolvedAccount?.wabaId ?? null,
+    resolvedAccount?.accessToken ?? null,
+  );
+
+  const lastUpdated = dataUpdatedAt
+    ? new Date(dataUpdatedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    : null;
+
+  const handleRefreshAll = () => {
+    if (resolvedAccount) {
+      queryClient.invalidateQueries({ queryKey: ['waba-templates', resolvedAccount.wabaId] });
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -616,15 +633,30 @@ export default function Templates() {
 
         {/* Sticky sidebar */}
         <aside className="w-64 flex-shrink-0 border-r bg-card/50 sticky top-0 h-screen flex flex-col">
-          <div className="p-4 border-b flex items-center justify-between">
-            <div>
+          <div className="p-4 border-b">
+            <div className="flex items-center justify-between mb-1">
               <h1 className="font-bold text-base">Templates</h1>
-              <p className="text-xs text-muted-foreground mt-0.5">Contas WhatsApp</p>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={handleRefreshAll}
+                  disabled={isRefreshing || !resolvedAccount}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-40"
+                  title="Atualizar status dos templates"
+                >
+                  {isRefreshing
+                    ? <Loader2 className="w-3 h-3 animate-spin" />
+                    : <RefreshCw className="w-3 h-3" />}
+                  Atualizar
+                </button>
+                <Button size="sm" className="h-8 px-2.5 gap-1.5 text-xs" onClick={() => setCreatorOpen(true)}>
+                  <Plus className="w-3.5 h-3.5" />
+                  Criar
+                </Button>
+              </div>
             </div>
-            <Button size="sm" className="h-8 px-2.5 gap-1.5 text-xs" onClick={() => setCreatorOpen(true)}>
-              <Plus className="w-3.5 h-3.5" />
-              Criar
-            </Button>
+            {lastUpdated && (
+              <p className="text-[10px] text-muted-foreground">atualizado às {lastUpdated}</p>
+            )}
           </div>
           <div className="flex-1 overflow-y-auto p-2">
             {loadingAccounts ? (
