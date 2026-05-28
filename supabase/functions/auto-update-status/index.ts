@@ -86,7 +86,8 @@ Deno.serve(async (req) => {
         const [h, m] = s.time.split(':').map(Number)
         const scheduledMinutes = h * 60 + m
         const diff = currentTotalMinutes - scheduledMinutes
-        return diff >= 0 && diff <= 1
+        // Aceita uma janela de 15 minutos se o cron for alterado para rodar a cada 15 min
+        return diff >= 0 && diff < 15
       })
     }
 
