@@ -54,11 +54,20 @@ interface FormValues {
   headerEnabled: boolean;
   headerFormat: 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT';
   headerText: string;
+  headerExample: string;
   body: string;
+  bodyExamples: { value: string }[];
   footerEnabled: boolean;
   footerText: string;
   buttonsEnabled: boolean;
   buttons: FormButton[];
+}
+
+// Extract {{N}} variable indices from text (sorted, unique)
+function extractVarIndices(text: string): number[] {
+  const matches = [...text.matchAll(/\{\{(\d+)\}\}/g)];
+  const indices = [...new Set(matches.map(m => Number(m[1])))].sort((a, b) => a - b);
+  return indices;
 }
 
 interface DeployItem {
@@ -255,12 +264,24 @@ function buildComponents(values: FormValues): MetaTemplateComponent[] {
 
   if (values.headerEnabled) {
     const header: MetaTemplateComponent = { type: 'HEADER', format: values.headerFormat };
-    if (values.headerFormat === 'TEXT') header.text = values.headerText;
+    if (values.headerFormat === 'TEXT') {
+      header.text = values.headerText;
+      // Include example if header has {{1}}
+      if (values.headerText.includes('{{1}}') && values.headerExample?.trim()) {
+        header.example = { header_text: [values.headerExample.trim()] };
+      }
+    }
     components.push(header);
   }
 
   if (values.body.trim()) {
-    components.push({ type: 'BODY', text: values.body.trim() });
+    const bodyComp: MetaTemplateComponent = { type: 'BODY', text: values.body.trim() };
+    const indices = extractVarIndices(values.body);
+    if (indices.length > 0) {
+      const exampleValues = indices.map(i => values.bodyExamples?.[i - 1]?.value?.trim() || `exemplo_${i}`);
+      bodyComp.example = { body_text: [exampleValues] };
+    }
+    components.push(bodyComp);
   }
 
   if (values.footerEnabled && values.footerText.trim()) {
@@ -295,7 +316,9 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts }: Props
       headerEnabled: false,
       headerFormat: 'TEXT',
       headerText: '',
+      headerExample: '',
       body: '',
+      bodyExamples: [],
       footerEnabled: false,
       footerText: '',
       buttonsEnabled: false,
@@ -307,6 +330,25 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts }: Props
     control,
     name: 'buttons',
   });
+
+  const { fields: bodyExampleFields, replace: replaceBodyExamples } = useFieldArray({
+    control,
+    name: 'bodyExamples',
+  });
+
+  // Sync bodyExamples fields when body text changes
+  const bodyText = watch('body');
+  const bodyVarIndices = useMemo(() => extractVarIndices(bodyText ?? ''), [bodyText]);
+  useMemo(() => {
+    const current = bodyExampleFields.length;
+    const needed = bodyVarIndices.length;
+    if (current !== needed) {
+      replaceBodyExamples(Array.from({ length: needed }, (_, i) => ({
+        value: bodyExampleFields[i]?.value ?? '',
+      })));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bodyVarIndices.length]);
 
   const [selectedWabas, setSelectedWabas] = useState<Set<string>>(new Set());
   const [versionCount, setVersionCount] = useState(1);
@@ -589,7 +631,19 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts }: Props
                         )}
                       />
                       {watchValues.headerFormat === 'TEXT' && (
-                        <Input {...register('headerText')} placeholder="Texto do cabeçalho" />
+                        <div className="space-y-2">
+                          <Input {...register('headerText')} placeholder="Cabeçalho — ex: Olá {{1}}" />
+                          {watchValues.headerText?.includes('{{1}}') && (
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs font-mono font-bold text-amber-700 w-8 shrink-0">{'{{1}}'}</span>
+                              <Input
+                                {...register('headerExample')}
+                                placeholder="Exemplo do cabeçalho"
+                                className="h-8 text-sm bg-amber-50 border-amber-200"
+                              />
+                            </div>
+                          )}
+                        </div>
                       )}
                       {watchValues.headerFormat !== 'TEXT' && (
                         <p className="text-xs text-muted-foreground italic">
@@ -615,6 +669,34 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts }: Props
                     Use {'{{1}}'}, {'{{2}}'} para variáveis dinâmicas.
                   </p>
                 </div>
+
+                {/* Body variable examples */}
+                {bodyVarIndices.length > 0 && (
+                  <div className="border rounded-lg overflow-hidden bg-amber-50/50 border-amber-200">
+                    <div className="px-4 py-2.5 bg-amber-100/60 border-b border-amber-200">
+                      <p className="text-xs font-semibold text-amber-800">
+                        Exemplos das variáveis (obrigatório pela Meta)
+                      </p>
+                      <p className="text-xs text-amber-700 mt-0.5">
+                        Informe um valor de exemplo para cada variável detectada no corpo.
+                      </p>
+                    </div>
+                    <div className="p-4 space-y-2">
+                      {bodyVarIndices.map((varIdx, fieldIdx) => (
+                        <div key={varIdx} className="flex items-center gap-3">
+                          <span className="text-xs font-mono font-bold text-amber-700 w-8 shrink-0">
+                            {`{{${varIdx}}}`}
+                          </span>
+                          <Input
+                            {...register(`bodyExamples.${fieldIdx}.value`)}
+                            placeholder={`Ex: João`}
+                            className="h-8 text-sm bg-white"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Footer */}
                 <div className="border rounded-lg overflow-hidden">
