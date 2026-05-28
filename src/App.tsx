@@ -14,6 +14,7 @@ import UsersPage from "./pages/Users";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import DashboardV2 from "./pages/DashboardV2";
+import Templates from "./pages/Templates";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -78,6 +79,7 @@ const AppRoutes = () => {
       <Route path="/projects" element={<ProtectedRoute><Projects /></ProtectedRoute>} />
       <Route path="/projects/:id" element={<ProtectedRoute><ProjectDetail /></ProtectedRoute>} />
       <Route path="/campaigns" element={<ProtectedRoute><Campaigns /></ProtectedRoute>} />
+      <Route path="/templates" element={<ProtectedRoute><Templates /></ProtectedRoute>} />
       <Route path="/users" element={<MasterRoute><UsersPage /></MasterRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />

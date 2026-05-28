@@ -116,6 +116,58 @@ export const fetchBusinessManagerName = async (
   return response.json();
 };
 
+// Template component types
+export interface MetaTemplateComponent {
+  type: 'HEADER' | 'BODY' | 'FOOTER' | 'BUTTONS';
+  format?: 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT' | 'LOCATION';
+  text?: string;
+  buttons?: Array<{
+    type: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER' | 'COPY_CODE' | 'OTP';
+    text: string;
+    url?: string;
+    phone_number?: string;
+  }>;
+  example?: {
+    header_text?: string[];
+    body_text?: string[][];
+    header_handle?: string[];
+  };
+}
+
+export interface MetaTemplate {
+  id: string;
+  name: string;
+  status: 'APPROVED' | 'PENDING' | 'REJECTED' | 'DISABLED' | 'IN_APPEAL' | 'PAUSED';
+  category: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION';
+  language: string;
+  components: MetaTemplateComponent[];
+  quality_score?: {
+    score: 'GREEN' | 'YELLOW' | 'RED' | 'UNKNOWN';
+  };
+  rejected_reason?: string;
+}
+
+// Fetch templates from a WABA
+export const fetchWabaTemplates = async (
+  wabaId: string,
+  accessToken: string
+): Promise<MetaTemplate[]> => {
+  const fields = 'id,name,status,category,language,components,quality_score,rejected_reason';
+  const url = `${META_API_BASE}/${wabaId}/message_templates?fields=${fields}&limit=100`;
+
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error?.message || 'Erro ao buscar templates da WABA');
+  }
+
+  const data: MetaApiResponse<MetaTemplate> & { paging?: unknown } = await response.json();
+  return data.data || [];
+};
+
 // Fetch WABA name
 export const fetchWABAName = async (
   wabaId: string,
