@@ -239,7 +239,7 @@ function TemplateCard({ template, broadcastStats, snapshotStatus, snapshotCatego
             </div>
           )}
 
-          {template.rejected_reason && (
+          {template.rejected_reason && template.rejected_reason !== 'NONE' && (
             <div className="flex items-start gap-2 text-xs text-red-600 bg-red-50 rounded-lg p-2.5 border border-red-100">
               <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
               <span>{template.rejected_reason}</span>
