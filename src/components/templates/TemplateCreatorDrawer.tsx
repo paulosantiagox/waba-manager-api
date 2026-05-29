@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,9 @@ import {
   Loader2,
   Send,
   RefreshCw,
+  Pause,
+  Square,
+  Play,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { WabaAccount } from '@/hooks/useWabaTemplates';
@@ -76,6 +79,7 @@ interface DeployItem {
   wabaId: string;
   projectName: string;
   bmName: string;
+  numberName: string;
   accessToken: string;
   templateName: string;
   versionNumber: number;
@@ -308,7 +312,7 @@ interface Props {
   accounts: WabaAccount[];
 }
 
-type Step = 'form' | 'deploying' | 'done';
+type Step = 'form' | 'confirm' | 'deploying' | 'done';
 
 export default function TemplateCreatorDrawer({ open, onClose, accounts }: Props) {
   const { mutateAsync: saveDeployment } = useSaveDeployment();
@@ -361,6 +365,9 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts }: Props
   const [step, setStep] = useState<Step>('form');
   const [deployItems, setDeployItems] = useState<DeployItem[]>([]);
   const [deployedCount, setDeployedCount] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const pausedRef = useRef(false);
+  const stoppedRef = useRef(false);
 
   const watchValues = watch();
   const baseName = (watchValues.name ?? '').toLowerCase().replace(/[^a-z0-9_]/g, '_');
@@ -369,14 +376,40 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts }: Props
   const progress = totalItems > 0 ? Math.round((deployedCount / totalItems) * 100) : 0;
 
   const handleClose = () => {
-    if (step === 'deploying') return; // prevent close during deploy
+    if (step === 'deploying') return;
     reset();
     setSelectedWabas(new Set());
     setVersionCount(1);
     setStep('form');
     setDeployItems([]);
     setDeployedCount(0);
+    setIsPaused(false);
+    pausedRef.current = false;
+    stoppedRef.current = false;
     onClose();
+  };
+
+  // Build the deploy item queue (used by both confirm step and actual deploy)
+  const buildQueue = (values: FormValues): DeployItem[] => {
+    const selectedAccounts = accounts.filter(a => selectedWabas.has(a.wabaId));
+    const items: DeployItem[] = [];
+    for (const acc of selectedAccounts) {
+      for (let v = 1; v <= versionCount; v++) {
+        items.push({
+          key: `${acc.wabaId}::v${v}`,
+          wabaId: acc.wabaId,
+          projectName: acc.projectName,
+          bmName: acc.bmName,
+          numberName: acc.numberNames[0] ?? acc.wabaId,
+          accessToken: acc.accessToken,
+          templateName: versionName(acc.wabaId + baseName, v, versionCount).replace(acc.wabaId, '').replace(/^_/, '') || versionName(baseName, v, versionCount),
+          versionNumber: v,
+          projectId: acc.projectId,
+          status: 'waiting',
+        });
+      }
+    }
+    return items;
   };
 
   const onSubmit = handleSubmit(async (values) => {
@@ -388,35 +421,49 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts }: Props
       toast.error('O corpo do template é obrigatório.');
       return;
     }
-
-    // Build initial deploy queue
-    const selectedAccounts = accounts.filter(a => selectedWabas.has(a.wabaId));
-    const items: DeployItem[] = [];
-
-    for (const acc of selectedAccounts) {
-      for (let v = 1; v <= versionCount; v++) {
-        items.push({
-          key: `${acc.wabaId}::v${v}`,
-          wabaId: acc.wabaId,
-          projectName: acc.projectName,
-          bmName: acc.bmName,
-          accessToken: acc.accessToken,
-          templateName: versionName(baseName, v, versionCount),
-          versionNumber: v,
-          projectId: acc.projectId,
-          status: 'waiting',
-        });
-      }
-    }
-
+    // Go to confirm step — user reviews before deploying
+    const items = accounts.filter(a => selectedWabas.has(a.wabaId)).flatMap(acc =>
+      Array.from({ length: versionCount }, (_, i) => ({
+        key: `${acc.wabaId}::v${i + 1}`,
+        wabaId: acc.wabaId,
+        projectName: acc.projectName,
+        bmName: acc.bmName,
+        numberName: acc.numberNames[0] ?? acc.wabaId,
+        accessToken: acc.accessToken,
+        templateName: versionName(baseName, i + 1, versionCount),
+        versionNumber: i + 1,
+        projectId: acc.projectId,
+        status: 'waiting' as const,
+      }))
+    );
     setDeployItems(items);
+    setStep('confirm');
+  });
+
+  const startDeploy = async (values: FormValues) => {
+    pausedRef.current = false;
+    stoppedRef.current = false;
+    setIsPaused(false);
     setDeployedCount(0);
     setStep('deploying');
 
     const components = buildComponents(values);
     let doneCount = 0;
+    const items = deployItems;
 
     for (let i = 0; i < items.length; i++) {
+      // Check stop
+      if (stoppedRef.current) {
+        setStep('done');
+        return;
+      }
+
+      // Wait while paused
+      while (pausedRef.current) {
+        await new Promise(r => setTimeout(r, 300));
+        if (stoppedRef.current) { setStep('done'); return; }
+      }
+
       const item = items[i];
 
       // Mark as creating
@@ -437,18 +484,10 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts }: Props
 
         setDeployItems(prev =>
           prev.map(d =>
-            d.key === item.key
-              ? {
-                  ...d,
-                  status: finalStatus,
-                  metaId: result.id,
-                  actualCategory: result.category,
-                }
-              : d
+            d.key === item.key ? { ...d, status: finalStatus, metaId: result.id, actualCategory: result.category } : d
           )
         );
 
-        // Save to Supabase
         await saveDeployment({
           projectId: item.projectId,
           projectName: item.projectName,
@@ -468,12 +507,8 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts }: Props
       } catch (err) {
         const errorMessage = (err as Error).message;
         setDeployItems(prev =>
-          prev.map(d =>
-            d.key === item.key ? { ...d, status: 'error', errorMessage } : d
-          )
+          prev.map(d => d.key === item.key ? { ...d, status: 'error', errorMessage } : d)
         );
-
-        // Save error to Supabase
         await saveDeployment({
           projectId: item.projectId,
           projectName: item.projectName,
@@ -495,14 +530,14 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts }: Props
       doneCount++;
       setDeployedCount(doneCount);
 
-      // Delay between requests (except after last)
       if (i < items.length - 1) {
         await new Promise(r => setTimeout(r, DELAY_MS));
       }
     }
 
     setStep('done');
-  });
+  };
+
 
   const successCount = deployItems.filter(d => d.status === 'done' || d.status === 'category_changed').length;
   const errorCount = deployItems.filter(d => d.status === 'error').length;
@@ -517,6 +552,7 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts }: Props
         <SheetHeader className="px-6 py-4 border-b flex-shrink-0">
           <SheetTitle>
             {step === 'form' && 'Criar Template'}
+            {step === 'confirm' && 'Confirmar envio'}
             {step === 'deploying' && 'Enviando templates...'}
             {step === 'done' && 'Deploy concluído'}
           </SheetTitle>
@@ -907,16 +943,95 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts }: Props
           </ScrollArea>
         )}
 
+        {/* ─── CONFIRM STEP ─── */}
+        {step === 'confirm' && (
+          <div className="flex flex-col flex-1 overflow-hidden">
+            <ScrollArea className="flex-1">
+              <div className="p-6 space-y-5">
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-1">
+                  <p className="text-sm font-semibold text-amber-900">Revise antes de enviar</p>
+                  <p className="text-xs text-amber-800">
+                    Serão criados <strong>{deployItems.length} templates</strong> em{' '}
+                    <strong>{selectedWabas.size} conta(s)</strong>, com{' '}
+                    <strong>{versionCount} versão(ões)</strong> cada.
+                    Tempo estimado: ~{Math.ceil((deployItems.length * DELAY_MS) / 1000)}s.
+                  </p>
+                </div>
+
+                {/* Group by WABA */}
+                {Array.from(
+                  deployItems.reduce((map, item) => {
+                    if (!map.has(item.wabaId)) map.set(item.wabaId, { numberName: item.numberName, projectName: item.projectName, items: [] });
+                    map.get(item.wabaId)!.items.push(item);
+                    return map;
+                  }, new Map<string, { numberName: string; projectName: string; items: DeployItem[] }>())
+                ).map(([wabaId, group]) => (
+                  <div key={wabaId} className="border rounded-xl overflow-hidden">
+                    <div className="px-4 py-2.5 bg-muted/40 border-b">
+                      <p className="text-sm font-semibold">{group.numberName}</p>
+                      <p className="text-xs text-muted-foreground">{group.projectName} · {wabaId}</p>
+                    </div>
+                    <div className="p-3 space-y-1">
+                      {group.items.map(item => (
+                        <div key={item.key} className="flex items-center gap-2 text-sm py-1">
+                          <Clock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                          <span className="font-mono text-xs">{item.templateName}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+            <div className="p-6 pt-0 flex gap-2 border-t flex-shrink-0">
+              <Button variant="outline" className="flex-1" onClick={() => setStep('form')}>
+                Voltar e editar
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={() => startDeploy(watchValues as FormValues)}
+              >
+                <Send className="w-4 h-4 mr-2" />
+                Confirmar e enviar
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* ─── DEPLOYING + DONE STEP ─── */}
         {(step === 'deploying' || step === 'done') && (
           <div className="flex flex-col flex-1 overflow-hidden p-6 gap-5">
             {/* Progress bar */}
             <div className="space-y-2 flex-shrink-0">
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between items-center text-sm">
                 <span className="font-medium">
-                  {step === 'done' ? 'Concluído' : `Criando ${deployedCount + 1} de ${totalItems}...`}
+                  {step === 'done'
+                    ? stoppedRef.current ? 'Interrompido' : 'Concluído'
+                    : isPaused ? 'Pausado...' : `Criando ${deployedCount + 1} de ${totalItems}...`}
                 </span>
-                <span className="text-muted-foreground">{progress}%</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">{progress}%</span>
+                  {step === 'deploying' && (
+                    <>
+                      <button
+                        onClick={() => { pausedRef.current = !pausedRef.current; setIsPaused(pausedRef.current); }}
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg border text-xs text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+                        title={isPaused ? 'Retomar' : 'Pausar'}
+                      >
+                        {isPaused ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
+                        {isPaused ? 'Retomar' : 'Pausar'}
+                      </button>
+                      <button
+                        onClick={() => { stoppedRef.current = true; pausedRef.current = false; setIsPaused(false); }}
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg border text-xs text-red-600 hover:bg-red-50 border-red-200 transition-colors"
+                        title="Parar criação"
+                      >
+                        <Square className="w-3 h-3" />
+                        Parar
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
               <Progress value={progress} className="h-2" />
               {step === 'done' && (
@@ -946,7 +1061,8 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts }: Props
                   >
                     <StatusIcon status={item.status} />
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{item.templateName}</p>
+                      <p className="font-medium truncate font-mono text-xs">{item.templateName}</p>
+                      <p className="text-xs text-muted-foreground font-medium">{item.numberName}</p>
                       <p className="text-xs text-muted-foreground">{item.projectName} · {item.wabaId}</p>
                       <p className={cn(
                         'text-xs mt-0.5',
@@ -974,6 +1090,9 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts }: Props
                     setStep('form');
                     setDeployItems([]);
                     setDeployedCount(0);
+                    setIsPaused(false);
+                    pausedRef.current = false;
+                    stoppedRef.current = false;
                   }}
                 >
                   <RefreshCw className="w-4 h-4 mr-2" />
