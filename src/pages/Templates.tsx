@@ -24,11 +24,14 @@ import {
   AlertTriangle,
   RefreshCw,
   Loader2,
+  ArrowRight,
+  Zap,
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import TemplateCreatorDrawer from '@/components/templates/TemplateCreatorDrawer';
 import { useTemplateDeployments, useRefreshDeploymentStatus, useTemplateBroadcastStats, TemplateBroadcastStats, TemplateDeployment } from '@/hooks/useTemplateDeployments';
+import { useTemplateStatusHistory, useRefreshAllTemplates, useTemplateSnapshots, TemplateStatusChange } from '@/hooks/useTemplateHistory';
 import { useWabaAccounts as useAccounts } from '@/hooks/useWabaTemplates';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -85,7 +88,12 @@ const CATEGORY_COLOR: Record<string, string> = {
 
 // ─── Template Card ────────────────────────────────────────────────────────────
 
-function TemplateCard({ template, broadcastStats }: { template: MetaTemplate; broadcastStats?: TemplateBroadcastStats }) {
+function TemplateCard({ template, broadcastStats, snapshotStatus, snapshotCategory }: {
+  template: MetaTemplate;
+  broadcastStats?: TemplateBroadcastStats;
+  snapshotStatus?: string;
+  snapshotCategory?: string;
+}) {
   const [expanded, setExpanded] = useState(false);
   const status = STATUS_CONFIG[template.status] ?? STATUS_CONFIG.DISABLED;
 
@@ -95,6 +103,9 @@ function TemplateCard({ template, broadcastStats }: { template: MetaTemplate; br
   const buttonsComponent = template.components.find(c => c.type === 'BUTTONS');
 
   const hasMedia = headerComponent && headerComponent.format !== 'TEXT';
+
+  const statusChanged = snapshotStatus && snapshotStatus !== template.status;
+  const categoryChanged = snapshotCategory && snapshotCategory !== template.category;
 
   return (
     <div className={cn(
@@ -122,9 +133,17 @@ function TemplateCard({ template, broadcastStats }: { template: MetaTemplate; br
           )} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm truncate mb-1.5" title={template.name}>
-            {template.name}
-          </p>
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <p className="font-semibold text-sm truncate" title={template.name}>
+              {template.name}
+            </p>
+            {(statusChanged || categoryChanged) && (
+              <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 shrink-0">
+                <AlertTriangle className="w-2.5 h-2.5" />
+                Mudou
+              </span>
+            )}
+          </div>
           <div className="flex flex-wrap gap-1.5">
             <span className={cn('inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border', status.color)}>
               {status.icon}
@@ -204,6 +223,22 @@ function TemplateCard({ template, broadcastStats }: { template: MetaTemplate; br
             </div>
           </div>
 
+          {(statusChanged || categoryChanged) && (
+            <div className="flex flex-wrap gap-2 text-xs bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+              {statusChanged && (
+                <span className="flex items-center gap-1 text-amber-800">
+                  <AlertTriangle className="w-3 h-3" />
+                  Status: <b>{snapshotStatus}</b> <ArrowRight className="w-3 h-3" /> <b>{template.status}</b>
+                </span>
+              )}
+              {categoryChanged && (
+                <span className="flex items-center gap-1 text-amber-800">
+                  Categoria: <b>{snapshotCategory}</b> <ArrowRight className="w-3 h-3" /> <b>{template.category}</b>
+                </span>
+              )}
+            </div>
+          )}
+
           {template.rejected_reason && (
             <div className="flex items-start gap-2 text-xs text-red-600 bg-red-50 rounded-lg p-2.5 border border-red-100">
               <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
@@ -231,6 +266,7 @@ function TemplatesPanel({ account }: { account: WabaAccount }) {
     account.accessToken
   );
   const { data: broadcastStatsMap } = useTemplateBroadcastStats();
+  const { data: snapshotsMap } = useTemplateSnapshots(account.wabaId);
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ['waba-templates', account.wabaId] });
@@ -395,7 +431,13 @@ function TemplatesPanel({ account }: { account: WabaAccount }) {
         <div className="mt-2">
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 pb-6">
             {filtered.map(template => (
-              <TemplateCard key={`${template.id}-${template.language}`} template={template} broadcastStats={broadcastStatsMap?.get(template.name)} />
+              <TemplateCard
+                key={`${template.id}-${template.language}`}
+                template={template}
+                broadcastStats={broadcastStatsMap?.get(template.name)}
+                snapshotStatus={snapshotsMap?.get(template.name)?.status}
+                snapshotCategory={snapshotsMap?.get(template.name)?.category}
+              />
             ))}
           </div>
         </div>
@@ -597,6 +639,101 @@ function DeploymentHistory({ accounts }: { accounts: WabaAccount[] }) {
   );
 }
 
+// ─── Status Change History ────────────────────────────────────────────────────
+
+const STATUS_LABEL: Record<string, string> = {
+  APPROVED: 'Aprovado', PENDING: 'Pendente', REJECTED: 'Rejeitado',
+  PAUSED: 'Pausado', DISABLED: 'Desativado', IN_APPEAL: 'Em recurso',
+};
+
+const STATUS_BADGE: Record<string, string> = {
+  APPROVED: 'text-green-700 bg-green-50 border-green-200',
+  PENDING: 'text-yellow-700 bg-yellow-50 border-yellow-200',
+  REJECTED: 'text-red-700 bg-red-50 border-red-200',
+  PAUSED: 'text-orange-700 bg-orange-50 border-orange-200',
+  DISABLED: 'text-gray-500 bg-gray-50 border-gray-200',
+  IN_APPEAL: 'text-blue-700 bg-blue-50 border-blue-200',
+};
+
+function StatusChangeHistory() {
+  const { data: changes = [], isLoading } = useTemplateStatusHistory();
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}
+      </div>
+    );
+  }
+
+  if (changes.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-3 text-center">
+        <AlertTriangle className="w-10 h-10 text-muted-foreground/30" />
+        <div>
+          <p className="font-medium text-sm">Nenhuma mudança detectada</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Clique em <Zap className="w-3 h-3 inline" /> para sincronizar todos os templates e detectar mudanças.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {changes.map(c => (
+        <div key={c.id} className="border rounded-xl p-3 bg-card hover:shadow-sm transition-shadow">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <AlertTriangle className="w-4 h-4 text-amber-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                <span className="font-medium text-sm font-mono">{c.templateName}</span>
+                {c.projectName && (
+                  <span className="text-xs text-muted-foreground">{c.projectName}</span>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-2 mb-1">
+                {c.previousStatus !== c.newStatus && (
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <span className="text-muted-foreground">Status:</span>
+                    {c.previousStatus && (
+                      <span className={cn('px-2 py-0.5 rounded-full border font-medium', STATUS_BADGE[c.previousStatus] ?? 'text-gray-500 bg-gray-50 border-gray-200')}>
+                        {STATUS_LABEL[c.previousStatus] ?? c.previousStatus}
+                      </span>
+                    )}
+                    <ArrowRight className="w-3 h-3 text-muted-foreground" />
+                    <span className={cn('px-2 py-0.5 rounded-full border font-medium', STATUS_BADGE[c.newStatus] ?? 'text-gray-500 bg-gray-50 border-gray-200')}>
+                      {STATUS_LABEL[c.newStatus] ?? c.newStatus}
+                    </span>
+                  </div>
+                )}
+                {c.previousCategory !== c.newCategory && (
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <span className="text-muted-foreground">Categoria:</span>
+                    <span className={cn('px-2 py-0.5 rounded-full border', CATEGORY_COLOR[c.previousCategory ?? ''] ?? 'text-gray-500 bg-gray-50 border-gray-200')}>
+                      {CATEGORY_LABEL[c.previousCategory ?? ''] ?? c.previousCategory}
+                    </span>
+                    <ArrowRight className="w-3 h-3 text-muted-foreground" />
+                    <span className={cn('px-2 py-0.5 rounded-full border', CATEGORY_COLOR[c.newCategory] ?? 'text-gray-500 bg-gray-50 border-gray-200')}>
+                      {CATEGORY_LABEL[c.newCategory] ?? c.newCategory}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                WABA {c.wabaId} · {formatDistanceToNow(new Date(c.changedAt), { addSuffix: true, locale: ptBR })}
+              </p>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Templates() {
@@ -607,7 +744,7 @@ export default function Templates() {
 
   const resolvedAccount = selectedAccount ?? accounts[0] ?? null;
 
-  const [activeTab, setActiveTab] = useState<'templates' | 'history'>('templates');
+  const [activeTab, setActiveTab] = useState<'templates' | 'history' | 'changes'>('templates');
 
   // Mirror the same query the TemplatesPanel uses — React Query deduplicates, no double fetch
   const { isFetching: isRefreshing, dataUpdatedAt } = useTemplatesForWaba(
@@ -619,11 +756,13 @@ export default function Templates() {
     ? new Date(dataUpdatedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     : null;
 
-  const handleRefreshAll = () => {
+  const handleRefreshCurrent = () => {
     if (resolvedAccount) {
       queryClient.invalidateQueries({ queryKey: ['waba-templates', resolvedAccount.wabaId] });
     }
   };
+
+  const { mutate: runRefreshAll, isPending: isRefreshingAll } = useRefreshAllTemplates();
 
   return (
     <DashboardLayout>
@@ -637,14 +776,24 @@ export default function Templates() {
               <h1 className="font-bold text-base">Templates</h1>
               <div className="flex items-center gap-1.5">
                 <button
-                  onClick={handleRefreshAll}
+                  onClick={handleRefreshCurrent}
                   disabled={isRefreshing || !resolvedAccount}
                   className="w-8 h-8 flex items-center justify-center rounded-lg border text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-40"
-                  title="Atualizar status dos templates"
+                  title="Atualizar WABA atual"
                 >
                   {isRefreshing
                     ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     : <RefreshCw className="w-3.5 h-3.5" />}
+                </button>
+                <button
+                  onClick={() => runRefreshAll()}
+                  disabled={isRefreshingAll}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg border text-muted-foreground hover:text-foreground hover:border-amber-400 hover:text-amber-600 transition-colors disabled:opacity-40"
+                  title="Atualizar TODOS os templates e detectar mudanças"
+                >
+                  {isRefreshingAll
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <Zap className="w-3.5 h-3.5" />}
                 </button>
                 <Button size="sm" className="h-8 px-2.5 gap-1.5 text-xs" onClick={() => setCreatorOpen(true)}>
                   <Plus className="w-3.5 h-3.5" />
@@ -680,19 +829,23 @@ export default function Templates() {
           {/* Tab bar — sticky */}
           <div className="sticky top-0 z-10 bg-background border-b px-6 pt-4 pb-0">
             <div className="flex gap-1">
-              {(['templates', 'history'] as const).map(tab => (
+              {([
+                { key: 'templates', label: 'Templates', icon: <FileText className="w-3.5 h-3.5" /> },
+                { key: 'changes', label: 'Mudanças de Status', icon: <AlertTriangle className="w-3.5 h-3.5" /> },
+                { key: 'history', label: 'Histórico de Deploy', icon: <History className="w-3.5 h-3.5" /> },
+              ] as const).map(tab => (
                 <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
                   className={cn(
                     'flex items-center gap-1.5 px-4 py-2 text-xs font-medium border-b-2 transition-colors',
-                    activeTab === tab
+                    activeTab === tab.key
                       ? 'border-primary text-primary'
                       : 'border-transparent text-muted-foreground hover:text-foreground'
                   )}
                 >
-                  {tab === 'templates' ? <FileText className="w-3.5 h-3.5" /> : <History className="w-3.5 h-3.5" />}
-                  {tab === 'templates' ? 'Templates' : 'Histórico de Deploy'}
+                  {tab.icon}
+                  {tab.label}
                 </button>
               ))}
             </div>
@@ -712,6 +865,8 @@ export default function Templates() {
                   </div>
                 </div>
               )
+            ) : activeTab === 'changes' ? (
+              <StatusChangeHistory />
             ) : (
               <DeploymentHistory accounts={accounts} />
             )}
