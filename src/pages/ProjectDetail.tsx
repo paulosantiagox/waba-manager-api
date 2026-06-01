@@ -546,39 +546,50 @@ const ProjectDetail = () => {
             </Button>
             <Dialog open={isBMListOpen} onOpenChange={setIsBMListOpen}>
               <DialogTrigger asChild><Button variant="outline"><Building2 className="w-4 h-4 mr-2" />Cadastrar BM</Button></DialogTrigger>
-              <DialogContent className="max-w-lg">
-                <DialogHeader><DialogTitle className="flex items-center gap-2"><Building2 className="w-5 h-5" />Business Managers</DialogTitle></DialogHeader>
-                <div className="mt-4 space-y-4">
-                  <div className="flex justify-end"><Button size="sm" onClick={() => { setEditBM(null); setIsNewBMOpen(true); setIsBMListOpen(false); }}><Plus className="w-4 h-4 mr-1" />Nova BM</Button></div>
-                  {projectBMs.length > 0 ? (
-                    <div className="space-y-2">
-                      {projectBMs.map((bm) => (
-                        <div key={bm.id} className="p-3 rounded-lg border bg-card">
-                          <div className="flex items-start justify-between">
-                            <div className="space-y-2">
-                              <div>
-                                <p className="text-xs text-muted-foreground">BM Principal</p>
-                                <p className="font-medium text-sm">{bm.mainBmName}</p>
-                                <p className="text-xs text-muted-foreground">ID: {bm.mainBmId}</p>
-                              </div>
-                              {bm.subBmName && (
-                                <div className="pt-2 border-t border-border">
-                                  <p className="text-xs text-muted-foreground">Sub BM (WABA)</p>
-                                  <p className="font-medium text-sm">{bm.subBmName}</p>
-                                  <p className="text-xs text-muted-foreground">ID: {bm.subBmId}</p>
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditBM(bm); setIsNewBMOpen(true); setIsBMListOpen(false); }}><Edit2 className="w-4 h-4" /></Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setDeleteBM(bm); setIsBMListOpen(false); }}><Trash2 className="w-4 h-4" /></Button>
-                            </div>
+              <DialogContent className="max-w-xl flex flex-col max-h-[80vh]">
+                <DialogHeader className="flex-shrink-0">
+                  <DialogTitle className="flex items-center gap-2">
+                    <Building2 className="w-5 h-5" />
+                    Business Managers
+                    <span className="ml-auto text-sm font-normal text-muted-foreground">{projectBMs.length} cadastrada(s)</span>
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="flex justify-between items-center flex-shrink-0 pt-2">
+                  <p className="text-xs text-muted-foreground">Gerencie as BMs vinculadas a este projeto</p>
+                  <Button size="sm" onClick={() => { setEditBM(null); setIsNewBMOpen(true); setIsBMListOpen(false); }}>
+                    <Plus className="w-4 h-4 mr-1" />Nova BM
+                  </Button>
+                </div>
+                <div className="overflow-y-auto flex-1 mt-2 pr-1 space-y-2">
+                  {projectBMs.length > 0 ? projectBMs.map((bm) => (
+                    <div key={bm.id} className="p-3 rounded-lg border bg-card">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0 space-y-2">
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">BM Principal</p>
+                            <p className="font-medium text-sm">{bm.mainBmName}</p>
+                            <p className="text-xs text-muted-foreground font-mono">ID: {bm.mainBmId}</p>
                           </div>
+                          {bm.subBmName && (
+                            <div className="pt-2 border-t border-border">
+                              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Sub BM (WABA)</p>
+                              <p className="font-medium text-sm">{bm.subBmName}</p>
+                              <p className="text-xs text-muted-foreground font-mono">ID: {bm.subBmId}</p>
+                            </div>
+                          )}
                         </div>
-                      ))}
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditBM(bm); setIsNewBMOpen(true); setIsBMListOpen(false); }}><Edit2 className="w-4 h-4" /></Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setDeleteBM(bm); setIsBMListOpen(false); }}><Trash2 className="w-4 h-4" /></Button>
+                        </div>
+                      </div>
                     </div>
-                  ) : (
-                    <div className="text-center py-8"><Building2 className="w-10 h-10 mx-auto text-muted-foreground/50 mb-2" /><p className="text-sm text-muted-foreground">Nenhuma BM cadastrada</p></div>
+                  )) : (
+                    <div className="text-center py-10">
+                      <Building2 className="w-10 h-10 mx-auto text-muted-foreground/40 mb-2" />
+                      <p className="text-sm text-muted-foreground">Nenhuma BM cadastrada ainda</p>
+                      <p className="text-xs text-muted-foreground mt-1">Clique em "Nova BM" para adicionar</p>
+                    </div>
                   )}
                 </div>
               </DialogContent>
