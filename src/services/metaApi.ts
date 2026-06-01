@@ -24,7 +24,6 @@ interface MetaApiResponse<T> {
 const META_API_BASE = 'https://graph.facebook.com/v21.0';
 
 // Map Meta quality to internal quality
-// IMPORTANTE: Agora lança erro em vez de retornar fallback errado
 export const mapMetaQuality = (quality: string): 'HIGH' | 'MEDIUM' | 'LOW' => {
   switch (quality) {
     case 'GREEN':
@@ -33,10 +32,10 @@ export const mapMetaQuality = (quality: string): 'HIGH' | 'MEDIUM' | 'LOW' => {
       return 'MEDIUM';
     case 'RED':
       return 'LOW';
+    case 'UNKNOWN':
     default:
-      // Lança erro para que o chamador possa tratar adequadamente
-      // Isso evita que um erro de API seja interpretado como "MEDIUM"
-      throw new Error(`Valor de quality_rating inválido ou ausente: ${quality || 'undefined'}`);
+      // UNKNOWN é retornado pela Meta para números novos ou sem histórico suficiente
+      return 'MEDIUM';
   }
 };
 
