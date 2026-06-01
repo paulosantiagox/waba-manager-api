@@ -35,7 +35,7 @@ const QualityBadge = ({ rating, showLabel = true, size = 'md' }: QualityBadgePro
     lg: 'text-xs px-2.5 py-1'
   };
 
-  const { color, label, emoji } = config[rating];
+  const { color, label, emoji } = config[rating] ?? config.MEDIUM;
 
   return (
     <span className={cn(
