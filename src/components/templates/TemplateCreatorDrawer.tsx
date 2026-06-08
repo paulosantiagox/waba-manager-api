@@ -123,7 +123,7 @@ const CATEGORY_INFO: Record<string, { label: string; color: string; desc: string
   },
 };
 
-const DELAY_MS = 1800; // delay between each creation to avoid rate limiting
+const DEFAULT_DELAY_S = 3; // padrão: 3 segundos entre criações
 
 // ─── Status icon ─────────────────────────────────────────────────────────────
 
@@ -362,6 +362,7 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts }: Props
 
   const [selectedWabas, setSelectedWabas] = useState<Set<string>>(new Set());
   const [versionCount, setVersionCount] = useState(1);
+  const [delaySeconds, setDelaySeconds] = useState(DEFAULT_DELAY_S);
   const [step, setStep] = useState<Step>('form');
   const [deployItems, setDeployItems] = useState<DeployItem[]>([]);
   const [deployedCount, setDeployedCount] = useState(0);
@@ -383,6 +384,7 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts }: Props
     setStep('form');
     setDeployItems([]);
     setDeployedCount(0);
+    setDelaySeconds(DEFAULT_DELAY_S);
     setIsPaused(false);
     pausedRef.current = false;
     stoppedRef.current = false;
@@ -531,7 +533,7 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts }: Props
       setDeployedCount(doneCount);
 
       if (i < items.length - 1) {
-        await new Promise(r => setTimeout(r, DELAY_MS));
+        await new Promise(r => setTimeout(r, delaySeconds * 1000));
       }
     }
 
@@ -885,18 +887,34 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts }: Props
               {/* Versions */}
               <section className="space-y-3">
                 <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-                  Versões
+                  Versões e Intervalo
                 </h3>
-                <div className="flex items-center gap-3">
-                  <Label className="shrink-0">Quantas versões?</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={20}
-                    value={versionCount}
-                    onChange={e => setVersionCount(Math.max(1, Math.min(20, Number(e.target.value))))}
-                    className="w-20 text-center"
-                  />
+                <div className="flex items-center gap-4 flex-wrap">
+                  <div className="flex items-center gap-3">
+                    <Label className="shrink-0">Quantas versões?</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={20}
+                      value={versionCount}
+                      onChange={e => setVersionCount(Math.max(1, Math.min(20, Number(e.target.value))))}
+                      className="w-20 text-center"
+                    />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Label className="shrink-0">Intervalo entre envios</Label>
+                    <div className="flex items-center gap-1.5">
+                      <Input
+                        type="number"
+                        min={1}
+                        max={30}
+                        value={delaySeconds}
+                        onChange={e => setDelaySeconds(Math.max(1, Math.min(30, Number(e.target.value))))}
+                        className="w-16 text-center"
+                      />
+                      <span className="text-sm text-muted-foreground shrink-0">seg</span>
+                    </div>
+                  </div>
                 </div>
                 {baseName && versionCount > 1 && (
                   <div className="flex flex-wrap gap-1.5">
@@ -925,7 +943,7 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts }: Props
                       {selectedWabas.size} WABA(s) × {versionCount} versão(ões) ={' '}
                       <strong>{totalItems} template(s)</strong> a criar
                       {totalItems > 1 && (
-                        <> · ~{Math.ceil((totalItems * DELAY_MS) / 1000)}s estimado</>
+                        <> · ~{Math.ceil(totalItems * delaySeconds)}s estimado</>
                       )}
                     </p>
                   </div>
@@ -954,7 +972,7 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts }: Props
                     Serão criados <strong>{deployItems.length} templates</strong> em{' '}
                     <strong>{selectedWabas.size} conta(s)</strong>, com{' '}
                     <strong>{versionCount} versão(ões)</strong> cada.
-                    Tempo estimado: ~{Math.ceil((deployItems.length * DELAY_MS) / 1000)}s.
+                    Tempo estimado: ~{Math.ceil(deployItems.length * delaySeconds)}s.
                   </p>
                 </div>
 
