@@ -14,7 +14,7 @@ import { ptBR } from 'date-fns/locale';
 import {
   Search, Send, CheckCircle2, Clock, XCircle, AlertTriangle,
   Users, FileText, Phone, Building2, Megaphone, Tag, CalendarClock,
-  Filter, X, ChevronDown, RotateCcw, Copy, Eye,
+  Filter, X, ChevronDown, RotateCcw, Copy, Eye, Loader2,
   MessageSquare, Image, Video, File, Link2, PhoneCall,
 } from 'lucide-react';
 
@@ -406,7 +406,7 @@ function Detail({ label, value, mono }: { label: string; value: string | null | 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Broadcasts() {
-  const { data: broadcasts = [], isLoading } = useBroadcastsReport();
+  const { data: broadcasts = [], isLoading, isFetching, refetch } = useBroadcastsReport();
   const { data: libraryItems = [] } = useTemplateLibrary();
   const { data: accounts = [] } = useWabaAccounts();
 
@@ -472,7 +472,16 @@ export default function Broadcasts() {
             </p>
           </div>
           {!isLoading && (
-            <div className="flex gap-3 flex-wrap">
+            <div className="flex gap-3 flex-wrap items-start">
+              <button
+                onClick={() => refetch()}
+                disabled={isFetching}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-40 self-start mt-1"
+                title="Atualizar lista de disparos"
+              >
+                {isFetching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                Atualizar
+              </button>
               <div className="bg-card border rounded-xl px-4 py-2.5 text-center min-w-[90px]">
                 <p className="text-2xl font-bold">{filtered.length}</p>
                 <p className="text-xs text-muted-foreground">disparos</p>
