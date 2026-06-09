@@ -65,7 +65,7 @@ function mapRow(r: Record<string, unknown>): TemplateLibraryItem {
   };
 }
 
-// ─── Extractor ────────────────────────────────────────────────────────────────
+// ─── Component extractor ──────────────────────────────────────────────────────
 
 function extractFromComponents(components: MetaTemplateComponent[]) {
   const header = components.find(c => c.type === 'HEADER');
@@ -77,11 +77,9 @@ function extractFromComponents(components: MetaTemplateComponent[]) {
   const headerText = header?.format === 'TEXT' ? (header.text ?? null) : null;
   const headerMediaUrl = header?.example?.header_handle?.[0] ?? null;
   const headerExample = header?.example?.header_text?.[0] ?? headerMediaUrl ?? null;
-
   const bodyText = body?.text ?? null;
   const bodyExamples = body?.example?.body_text ?? [];
   const variableCount = bodyText ? [...bodyText.matchAll(/\{\{(\d+)\}\}/g)].length : 0;
-
   const footerText = footer?.text ?? null;
   const buttons = (buttonsComp?.buttons ?? []).map(b => ({
     type: b.type,
@@ -91,17 +89,17 @@ function extractFromComponents(components: MetaTemplateComponent[]) {
   }));
 
   return {
-    headerType,
-    headerText,
-    headerMediaUrl,
-    headerExample,
-    bodyText,
-    footerText,
+    header_type: headerType,
+    header_text: headerText,
+    header_media_url: headerMediaUrl,
+    header_example: headerExample,
+    body_text: bodyText,
+    footer_text: footerText,
     buttons,
-    bodyExamples,
-    hasVariables: variableCount > 0,
-    variableCount,
-    buttonCount: buttons.length,
+    body_examples: bodyExamples,
+    has_variables: variableCount > 0,
+    variable_count: variableCount,
+    button_count: buttons.length,
   };
 }
 
@@ -133,6 +131,15 @@ export function useSyncTemplateLibrary(accounts: WabaAccount[]) {
       let updated = 0;
       const errors: string[] = [];
 
+      // Load existing keys to count added vs updated
+      const { data: existingRows } = await supabase
+        .from('waba_template_library')
+        .select('waba_id, template_name');
+
+      const existingSet = new Set(
+        (existingRows ?? []).map((r: Record<string, unknown>) => `${r.waba_id}::${r.template_name}`)
+      );
+
       for (const account of accounts) {
         let templates: MetaTemplate[];
         try {
@@ -142,9 +149,13 @@ export function useSyncTemplateLibrary(accounts: WabaAccount[]) {
           continue;
         }
 
-        for (const t of templates) {
-          const extracted = extractFromComponents(t.components);
-          const payload = {
+        if (templates.length === 0) continue;
+
+        const payloads = templates.map(t => {
+          const key = `${account.wabaId}::${t.name}`;
+          if (existingSet.has(key)) { updated++; } else { added++; }
+
+          return {
             meta_template_id: t.id,
             waba_id: account.wabaId,
             project_id: account.projectId,
@@ -155,32 +166,22 @@ export function useSyncTemplateLibrary(accounts: WabaAccount[]) {
             category: t.category,
             language: t.language,
             quality_score: t.quality_score?.score ?? null,
-            rejected_reason: t.rejected_reason && t.rejected_reason !== 'NONE' ? t.rejected_reason : null,
+            rejected_reason:
+              t.rejected_reason && t.rejected_reason !== 'NONE'
+                ? t.rejected_reason
+                : null,
             components: t.components,
-            ...extracted,
+            ...extractFromComponents(t.components),
             last_synced_at: new Date().toISOString(),
           };
+        });
 
-          // Check if exists
-          const { data: existing } = await supabase
-            .from('waba_template_library')
-            .select('id, status, category')
-            .eq('waba_id', account.wabaId)
-            .eq('template_name', t.name)
-            .maybeSingle();
+        const { error: upsertErr } = await supabase
+          .from('waba_template_library')
+          .upsert(payloads, { onConflict: 'waba_id,template_name' });
 
-          if (existing) {
-            await supabase
-              .from('waba_template_library')
-              .update(payload)
-              .eq('id', existing.id);
-            updated++;
-          } else {
-            await supabase
-              .from('waba_template_library')
-              .insert(payload);
-            added++;
-          }
+        if (upsertErr) {
+          errors.push(`${account.projectName} (${account.wabaId}): ${upsertErr.message}`);
         }
       }
 
