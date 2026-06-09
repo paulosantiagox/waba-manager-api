@@ -75,3 +75,11 @@ export function BrasiliaClockWidget({ collapsed = false }: { collapsed?: boolean
 export function ManausClockWidget({ collapsed = false }: { collapsed?: boolean }) {
   return <ClockWidget collapsed={collapsed} timezone="America/Manaus" label="Horário de Manaus" />;
 }
+
+export function LisbonClockWidget({ collapsed = false }: { collapsed?: boolean }) {
+  return <ClockWidget collapsed={collapsed} timezone="Europe/Lisbon" label="Portugal (Lisboa)" />;
+}
+
+export function ParisClockWidget({ collapsed = false }: { collapsed?: boolean }) {
+  return <ClockWidget collapsed={collapsed} timezone="Europe/Paris" label="Paris (França)" />;
+}
