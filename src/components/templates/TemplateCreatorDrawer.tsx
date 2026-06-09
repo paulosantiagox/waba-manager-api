@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -306,33 +306,51 @@ function buildComponents(values: FormValues): MetaTemplateComponent[] {
 
 // ─── Main Drawer ──────────────────────────────────────────────────────────────
 
+export interface TemplateInitialValues {
+  name?: string;
+  category?: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION';
+  language?: string;
+  headerEnabled?: boolean;
+  headerFormat?: 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT';
+  headerText?: string;
+  headerExample?: string;
+  headerMediaUrl?: string;
+  body?: string;
+  bodyExamples?: { value: string }[];
+  footerEnabled?: boolean;
+  footerText?: string;
+  buttonsEnabled?: boolean;
+  buttons?: FormButton[];
+}
+
 interface Props {
   open: boolean;
   onClose: () => void;
   accounts: WabaAccount[];
+  initialValues?: TemplateInitialValues;
 }
 
 type Step = 'form' | 'confirm' | 'deploying' | 'done';
 
-export default function TemplateCreatorDrawer({ open, onClose, accounts }: Props) {
+export default function TemplateCreatorDrawer({ open, onClose, accounts, initialValues }: Props) {
   const { mutateAsync: saveDeployment } = useSaveDeployment();
 
   const { register, control, watch, handleSubmit, reset, formState: { errors } } = useForm<FormValues>({
     defaultValues: {
-      name: '',
-      category: 'MARKETING',
-      language: 'pt_BR',
-      headerEnabled: false,
-      headerFormat: 'TEXT',
-      headerText: '',
-      headerExample: '',
-      headerMediaUrl: '',
-      body: '',
-      bodyExamples: [],
-      footerEnabled: false,
-      footerText: '',
-      buttonsEnabled: false,
-      buttons: [],
+      name: initialValues?.name ?? '',
+      category: initialValues?.category ?? 'MARKETING',
+      language: initialValues?.language ?? 'pt_BR',
+      headerEnabled: initialValues?.headerEnabled ?? false,
+      headerFormat: initialValues?.headerFormat ?? 'TEXT',
+      headerText: initialValues?.headerText ?? '',
+      headerExample: initialValues?.headerExample ?? '',
+      headerMediaUrl: initialValues?.headerMediaUrl ?? '',
+      body: initialValues?.body ?? '',
+      bodyExamples: initialValues?.bodyExamples ?? [],
+      footerEnabled: initialValues?.footerEnabled ?? false,
+      footerText: initialValues?.footerText ?? '',
+      buttonsEnabled: initialValues?.buttonsEnabled ?? false,
+      buttons: initialValues?.buttons ?? [],
     },
   });
 
@@ -359,6 +377,30 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts }: Props
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bodyVarIndices.length]);
+
+  // Reset form when initialValues change (e.g. "Use as template" from library)
+  useEffect(() => {
+    if (open && initialValues) {
+      reset({
+        name: initialValues.name ?? '',
+        category: initialValues.category ?? 'MARKETING',
+        language: initialValues.language ?? 'pt_BR',
+        headerEnabled: initialValues.headerEnabled ?? false,
+        headerFormat: initialValues.headerFormat ?? 'TEXT',
+        headerText: initialValues.headerText ?? '',
+        headerExample: initialValues.headerExample ?? '',
+        headerMediaUrl: initialValues.headerMediaUrl ?? '',
+        body: initialValues.body ?? '',
+        bodyExamples: initialValues.bodyExamples ?? [],
+        footerEnabled: initialValues.footerEnabled ?? false,
+        footerText: initialValues.footerText ?? '',
+        buttonsEnabled: initialValues.buttonsEnabled ?? false,
+        buttons: initialValues.buttons ?? [],
+      });
+      setStep('form');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialValues]);
 
   const [selectedWabas, setSelectedWabas] = useState<Set<string>>(new Set());
   const [versionCount, setVersionCount] = useState(1);

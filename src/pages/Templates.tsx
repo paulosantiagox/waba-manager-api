@@ -26,10 +26,12 @@ import {
   Loader2,
   ArrowRight,
   Zap,
+  BookOpen,
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
-import TemplateCreatorDrawer from '@/components/templates/TemplateCreatorDrawer';
+import TemplateCreatorDrawer, { TemplateInitialValues } from '@/components/templates/TemplateCreatorDrawer';
+import TemplateLibraryTab from '@/components/templates/TemplateLibraryTab';
 import { useTemplateDeployments, useRefreshDeploymentStatus, useTemplateBroadcastStats, TemplateBroadcastStats, TemplateDeployment } from '@/hooks/useTemplateDeployments';
 import { useTemplateStatusHistory, useRefreshAllTemplates, useTemplateSnapshots, TemplateStatusChange } from '@/hooks/useTemplateHistory';
 import { useWabaAccounts as useAccounts } from '@/hooks/useWabaTemplates';
@@ -740,11 +742,12 @@ export default function Templates() {
   const { data: accounts = [], isLoading: loadingAccounts } = useWabaAccounts();
   const [selectedAccount, setSelectedAccount] = useState<WabaAccount | null>(null);
   const [creatorOpen, setCreatorOpen] = useState(false);
+  const [drawerInitialValues, setDrawerInitialValues] = useState<TemplateInitialValues | undefined>(undefined);
   const queryClient = useQueryClient();
 
   const resolvedAccount = selectedAccount ?? accounts[0] ?? null;
 
-  const [activeTab, setActiveTab] = useState<'templates' | 'history' | 'changes'>('templates');
+  const [activeTab, setActiveTab] = useState<'templates' | 'library' | 'changes' | 'history'>('templates');
 
   // Mirror the same query the TemplatesPanel uses — React Query deduplicates, no double fetch
   const { isFetching: isRefreshing, dataUpdatedAt } = useTemplatesForWaba(
@@ -831,8 +834,9 @@ export default function Templates() {
             <div className="flex gap-1">
               {([
                 { key: 'templates', label: 'Templates', icon: <FileText className="w-3.5 h-3.5" /> },
-                { key: 'changes', label: 'Mudanças de Status', icon: <AlertTriangle className="w-3.5 h-3.5" /> },
-                { key: 'history', label: 'Histórico de Deploy', icon: <History className="w-3.5 h-3.5" /> },
+                { key: 'library', label: 'Modelos', icon: <BookOpen className="w-3.5 h-3.5" /> },
+                { key: 'changes', label: 'Mudanças', icon: <AlertTriangle className="w-3.5 h-3.5" /> },
+                { key: 'history', label: 'Deploy', icon: <History className="w-3.5 h-3.5" /> },
               ] as const).map(tab => (
                 <button
                   key={tab.key}
@@ -865,6 +869,14 @@ export default function Templates() {
                   </div>
                 </div>
               )
+            ) : activeTab === 'library' ? (
+              <TemplateLibraryTab
+                accounts={accounts}
+                onUseAsTemplate={values => {
+                  setDrawerInitialValues(values);
+                  setCreatorOpen(true);
+                }}
+              />
             ) : activeTab === 'changes' ? (
               <StatusChangeHistory />
             ) : (
@@ -876,8 +888,9 @@ export default function Templates() {
 
       <TemplateCreatorDrawer
         open={creatorOpen}
-        onClose={() => setCreatorOpen(false)}
+        onClose={() => { setCreatorOpen(false); setDrawerInitialValues(undefined); }}
         accounts={accounts}
+        initialValues={drawerInitialValues}
       />
     </DashboardLayout>
   );
