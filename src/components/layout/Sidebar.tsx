@@ -12,6 +12,7 @@ import {
   ChevronRight,
   ChevronLeft,
   FileText,
+  Send,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { BrasiliaClockWidget, ManausClockWidget } from './BrasiliaClockWidget';
@@ -31,6 +32,7 @@ const Sidebar = ({ collapsed, onToggle, isMobile = false }: SidebarProps) => {
     { icon: LayoutDashboard, label: 'Dashboard V2', href: '/dashboard-v2' },
     { icon: FolderKanban, label: 'Projetos', href: '/projects' },
     { icon: Megaphone, label: 'Campanhas', href: '/campaigns' },
+    { icon: Send, label: 'Disparos', href: '/broadcasts' },
     { icon: FileText, label: 'Templates', href: '/templates' },
     ...(isMaster ? [{ icon: Users, label: 'Usuários', href: '/users' }] : []),
   ];
