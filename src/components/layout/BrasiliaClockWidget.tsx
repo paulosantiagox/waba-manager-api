@@ -7,6 +7,28 @@ interface ClockWidgetProps {
   label: string;
 }
 
+function getOffsetVsBrasilia(timezone: string, now: Date): string {
+  if (timezone === 'America/Sao_Paulo') return '';
+
+  // Get hour in each timezone
+  const getHour = (tz: string) =>
+    parseFloat(new Intl.DateTimeFormat('en', { timeZone: tz, hour: 'numeric', hour12: false }).format(now));
+  const getMin = (tz: string) =>
+    parseFloat(new Intl.DateTimeFormat('en', { timeZone: tz, minute: 'numeric' }).format(now));
+
+  const toMinutes = (tz: string) => getHour(tz) * 60 + getMin(tz);
+
+  let diff = toMinutes(timezone) - toMinutes('America/Sao_Paulo');
+  // Wrap around midnight
+  if (diff > 720) diff -= 1440;
+  if (diff < -720) diff += 1440;
+
+  const h = Math.floor(Math.abs(diff) / 60);
+  const m = Math.abs(diff) % 60;
+  const sign = diff >= 0 ? '+' : '-';
+  return m > 0 ? `${sign}${h}h${m}` : `${sign}${h}h`;
+}
+
 export function ClockWidget({ collapsed = false, timezone, label }: ClockWidgetProps) {
   const [now, setNow] = useState(new Date());
 
@@ -14,6 +36,8 @@ export function ClockWidget({ collapsed = false, timezone, label }: ClockWidgetP
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  const offset = getOffsetVsBrasilia(timezone, now);
 
   // Formatar data completa em português
   const dateFormatter = new Intl.DateTimeFormat('pt-BR', {
@@ -45,6 +69,9 @@ export function ClockWidget({ collapsed = false, timezone, label }: ClockWidgetP
         <span className="text-xs font-mono font-semibold text-sidebar-foreground">
           {formattedTime.slice(0, 5)}
         </span>
+        {offset && (
+          <span className="text-[8px] font-mono text-sidebar-foreground/40">{offset}</span>
+        )}
       </div>
     );
   }
@@ -53,9 +80,14 @@ export function ClockWidget({ collapsed = false, timezone, label }: ClockWidgetP
     <div className="px-3 py-2 mb-1 rounded-lg bg-sidebar-accent/50">
       <div className="flex items-center gap-2 mb-1">
         <Clock className="w-3.5 h-3.5 text-sidebar-foreground/60" />
-        <span className="text-[10px] text-sidebar-foreground/60 uppercase tracking-wide">
+        <span className="text-[10px] text-sidebar-foreground/60 uppercase tracking-wide flex-1">
           {label}
         </span>
+        {offset && (
+          <span className="text-[10px] font-mono font-semibold text-sidebar-foreground/50 bg-sidebar-accent px-1.5 py-0.5 rounded-full">
+            {offset}
+          </span>
+        )}
       </div>
       <p className="text-xs text-sidebar-foreground/80 capitalize leading-tight">
         {capitalizedDate}
