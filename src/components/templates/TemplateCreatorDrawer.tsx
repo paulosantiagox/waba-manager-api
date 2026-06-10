@@ -338,7 +338,7 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts, initial
   const { register, control, watch, handleSubmit, reset, formState: { errors } } = useForm<FormValues>({
     defaultValues: {
       name: initialValues?.name ?? '',
-      category: initialValues?.category ?? 'MARKETING',
+      category: initialValues?.category ?? 'UTILITY',
       language: initialValues?.language ?? 'pt_BR',
       headerEnabled: initialValues?.headerEnabled ?? false,
       headerFormat: initialValues?.headerFormat ?? 'TEXT',
