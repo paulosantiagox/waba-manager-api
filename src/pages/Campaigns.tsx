@@ -28,7 +28,7 @@ import { Plus, Megaphone, Send, Calendar, ChevronRight, ChevronDown, Edit2, Tras
 import BroadcastTemplateConfigModal, { getBroadcastTemplate } from '@/components/modals/BroadcastTemplateConfigModal';
 import { format, parse } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
+import { cn, copyToClipboard } from '@/lib/utils';
 
 const statusOptions: { value: BroadcastStatus; label: string; color: string }[] = [
   { value: 'preparing', label: 'Em preparação', color: 'bg-muted text-muted-foreground' },
@@ -220,11 +220,13 @@ const Campaigns = () => {
 
   const handleCopyContent = async (shortcut: CampaignShortcut) => {
     try {
-      await navigator.clipboard.writeText(shortcut.content);
+      await copyToClipboard(shortcut.content);
       setCopiedId(shortcut.id);
       toast.success(`"${shortcut.name}" copiado!`);
       setTimeout(() => setCopiedId(null), 2000);
-    } catch { toast.error("Erro ao copiar"); }
+    } catch (err) {
+      toast.error(`Erro ao copiar: ${err instanceof Error ? err.message : String(err)}`);
+    }
   };
 
   const handleCopyBroadcast = async (broadcast: Broadcast) => {
@@ -251,11 +253,13 @@ const Campaigns = () => {
         .replace(/{status}/g, status.label)
         .replace(/{observacoes}/g, broadcast.observations ? `📝 *Obs:* ${broadcast.observations}` : '');
       
-      await navigator.clipboard.writeText(message.trim());
+      await copyToClipboard(message.trim());
       setCopiedBroadcastId(broadcast.id);
       toast.success('Resumo do disparo copiado!');
       setTimeout(() => setCopiedBroadcastId(null), 2000);
-    } catch { toast.error("Erro ao copiar"); }
+    } catch (err) {
+      toast.error(`Erro ao copiar: ${err instanceof Error ? err.message : String(err)}`);
+    }
   };
 
   const getStatusOption = (status: BroadcastStatus) => statusOptions.find(s => s.value === status) || statusOptions[0];
