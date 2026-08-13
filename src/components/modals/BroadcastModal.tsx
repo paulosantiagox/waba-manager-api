@@ -10,6 +10,8 @@ import { Loader2, Send, Phone, Tag } from 'lucide-react';
 
 interface BroadcastModalProps {
   broadcast: Broadcast | null;
+  /** Dados de origem para pré-preencher ao DUPLICAR (cria um novo disparo). Ignorado quando `broadcast` está setado (edição). */
+  initialData?: Broadcast | null;
   campaignId: string;
   actionTypes: ActionType[];
   whatsappNumbers: WhatsAppNumber[];
@@ -18,14 +20,15 @@ interface BroadcastModalProps {
   onSave: (broadcast: Broadcast) => void;
 }
 
-const BroadcastModal = ({ 
-  broadcast, 
-  campaignId, 
-  actionTypes, 
+const BroadcastModal = ({
+  broadcast,
+  initialData,
+  campaignId,
+  actionTypes,
   whatsappNumbers,
-  open, 
-  onOpenChange, 
-  onSave 
+  open,
+  onOpenChange,
+  onSave
 }: BroadcastModalProps) => {
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
@@ -42,15 +45,17 @@ const BroadcastModal = ({
   const activeActionTypes = actionTypes.filter(at => at.isActive);
 
   useEffect(() => {
-    if (broadcast) {
-      setDate(broadcast.date);
-      setTime(broadcast.time);
-      setActionTypeId(broadcast.actionTypeId);
-      setPhoneNumberId(broadcast.phoneNumberId);
-      setListName(broadcast.listName);
-      setTemplateUsed(broadcast.templateUsed);
-      setContactCount(broadcast.contactCount.toString());
-      setObservations(broadcast.observations || '');
+    // Em edição usa `broadcast`; ao duplicar (broadcast null) usa `initialData` para pré-preencher.
+    const source = broadcast ?? initialData;
+    if (source) {
+      setDate(source.date);
+      setTime(source.time);
+      setActionTypeId(source.actionTypeId);
+      setPhoneNumberId(source.phoneNumberId);
+      setListName(source.listName);
+      setTemplateUsed(source.templateUsed);
+      setContactCount(source.contactCount.toString());
+      setObservations(source.observations || '');
     } else {
       const today = new Date().toISOString().split('T')[0];
       const now = new Date().toTimeString().slice(0, 5);
@@ -64,7 +69,7 @@ const BroadcastModal = ({
       setObservations('');
     }
     setErrors({});
-  }, [broadcast, open]);
+  }, [broadcast, initialData, open]);
 
   const validate = () => {
     const newErrors: Record<string, string> = {};

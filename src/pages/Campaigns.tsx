@@ -24,7 +24,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { SortableControls } from '@/components/ui/sortable-controls';
 import { toast } from 'sonner';
-import { Plus, Megaphone, Send, Calendar, ChevronRight, ChevronDown, Edit2, Trash2, Tag, Filter, Copy, Zap, Check, Loader2, Pin, Settings, FolderKanban } from 'lucide-react';
+import { Plus, Megaphone, Send, Calendar, ChevronRight, ChevronDown, Edit2, Trash2, Tag, Filter, Copy, CopyPlus, Zap, Check, Loader2, Pin, Settings, FolderKanban } from 'lucide-react';
 import BroadcastTemplateConfigModal, { getBroadcastTemplate } from '@/components/modals/BroadcastTemplateConfigModal';
 import { format, parse } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -50,6 +50,7 @@ const Campaigns = () => {
   const [copiedBroadcastId, setCopiedBroadcastId] = useState<string | null>(null);
   const [isTemplateConfigOpen, setIsTemplateConfigOpen] = useState(false);
   const [editBroadcast, setEditBroadcast] = useState<Broadcast | null>(null);
+  const [duplicateBroadcast, setDuplicateBroadcast] = useState<Broadcast | null>(null);
   const [isNewBroadcastOpen, setIsNewBroadcastOpen] = useState(false);
   const [editActionType, setEditActionType] = useState<ActionType | null>(null);
   const [isNewActionTypeOpen, setIsNewActionTypeOpen] = useState(false);
@@ -482,7 +483,7 @@ const Campaigns = () => {
                       <Settings className="w-4 h-4 mr-1" />
                       Config. Cópia
                     </Button>
-                    <Button size="sm" onClick={() => { setEditBroadcast(null); setIsNewBroadcastOpen(true); }}><Plus className="w-4 h-4 mr-1" />Registrar Disparo</Button>
+                    <Button size="sm" onClick={() => { setEditBroadcast(null); setDuplicateBroadcast(null); setIsNewBroadcastOpen(true); }}><Plus className="w-4 h-4 mr-1" />Registrar Disparo</Button>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -530,7 +531,22 @@ const Campaigns = () => {
                                         <TooltipContent>Copiar resumo para WhatsApp</TooltipContent>
                                       </Tooltip>
                                     </TooltipProvider>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditBroadcast(broadcast); setIsNewBroadcastOpen(true); }}><Edit2 className="w-4 h-4" /></Button>
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8"
+                                            onClick={() => { setEditBroadcast(null); setDuplicateBroadcast(broadcast); setIsNewBroadcastOpen(true); }}
+                                          >
+                                            <CopyPlus className="w-4 h-4" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Duplicar disparo (abre novo já preenchido)</TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setDuplicateBroadcast(null); setEditBroadcast(broadcast); setIsNewBroadcastOpen(true); }}><Edit2 className="w-4 h-4" /></Button>
                                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteItem({ type: 'broadcast', item: broadcast })}><Trash2 className="w-4 h-4" /></Button>
                                   </div>
                                 </TableCell>
@@ -557,7 +573,7 @@ const Campaigns = () => {
         </div>
       </div>
 
-      <BroadcastModal broadcast={editBroadcast} campaignId={activeCampaign?.id || ''} actionTypes={actionTypes} whatsappNumbers={userNumbers} open={isNewBroadcastOpen} onOpenChange={setIsNewBroadcastOpen} onSave={handleSaveBroadcast} />
+      <BroadcastModal broadcast={editBroadcast} initialData={duplicateBroadcast} campaignId={activeCampaign?.id || ''} actionTypes={actionTypes} whatsappNumbers={userNumbers} open={isNewBroadcastOpen} onOpenChange={setIsNewBroadcastOpen} onSave={handleSaveBroadcast} />
       <ActionTypeModal actionType={editActionType} campaignId={activeCampaign?.id || ''} open={isNewActionTypeOpen} onOpenChange={setIsNewActionTypeOpen} onSave={handleSaveActionType} />
       <ShortcutModal shortcut={editShortcut} campaignId={activeCampaign?.id || ''} open={isNewShortcutOpen} onOpenChange={setIsNewShortcutOpen} onSave={handleSaveShortcut} />
       <ConfirmDialog 
