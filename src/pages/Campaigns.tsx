@@ -24,7 +24,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { SortableControls } from '@/components/ui/sortable-controls';
 import { toast } from 'sonner';
-import { Plus, Megaphone, Send, Calendar, ChevronRight, ChevronDown, Edit2, Trash2, Tag, Filter, Copy, CopyPlus, Zap, Check, Loader2, Pin, Settings, FolderKanban } from 'lucide-react';
+import { Plus, Megaphone, Send, Calendar, ChevronRight, ChevronDown, Edit2, Trash2, Tag, Filter, Copy, CopyPlus, MessageCircle, Zap, Check, Loader2, Pin, Settings, FolderKanban } from 'lucide-react';
 import BroadcastTemplateConfigModal, { getBroadcastTemplate } from '@/components/modals/BroadcastTemplateConfigModal';
 import { format, parse } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -524,7 +524,7 @@ const Campaigns = () => {
                                             {copiedBroadcastId === broadcast.id ? (
                                               <Check className="w-4 h-4 text-success" />
                                             ) : (
-                                              <Copy className="w-4 h-4" />
+                                              <MessageCircle className="w-4 h-4" />
                                             )}
                                           </Button>
                                         </TooltipTrigger>
