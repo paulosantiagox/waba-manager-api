@@ -50,6 +50,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  // Tentativa de login SEM sessão (senha errada não gera auth.uid(), então a
+  // registrar_acesso recusaria). O banco extrai IP e user-agent dos headers —
+  // não mandamos do cliente, que seria forjável. p_evento fica no default
+  // ('login_falhou'). Acima de 20 req/IP/min o banco responde 204 e não grava:
+  // é o comportamento esperado, não é erro.
+  const registrarTentativa = useCallback(async (email: string, motivo: string) => {
+    try {
+      await supabase.rpc('registrar_tentativa', {
+        p_app: APP_ID,
+        p_email: email,
+        p_motivo: motivo,
+      });
+    } catch (e) {
+      console.warn('[Auth] registrar_tentativa falhou (ignorado):', e);
+    }
+  }, []);
+
   // Fonte de perfil e role: user_app_access + user_profiles (padrão 3SMAX).
   const fetchUserProfile = useCallback(
     async (userId: string): Promise<{ user: AppUser | null; reason?: DenyReason }> => {
@@ -165,7 +182,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
         if (error) {
-          if (error.message === 'Invalid login credentials') {
+          const credencialInvalida = error.message === 'Invalid login credentials';
+          // Registra a tentativa no log central ANTES de devolver o erro à UI.
+          await registrarTentativa(
+            email,
+            credencialInvalida ? 'email ou senha incorretos' : error.message
+          );
+
+          if (credencialInvalida) {
             return { error: 'Email ou senha inválidos' };
           }
           return { error: error.message };
@@ -193,7 +217,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: 'Erro ao fazer login' };
       }
     },
-    [fetchUserProfile, registrarAcesso, clearAuth]
+    [fetchUserProfile, registrarAcesso, registrarTentativa, clearAuth]
   );
 
   const logout = useCallback(async () => {
