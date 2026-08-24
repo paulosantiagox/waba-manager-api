@@ -149,7 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           fetchUserProfile(currentSession.user.id).then(({ user: appUser }) => {
             if (!appUser) {
               // Sessão existe mas não tem acesso → nunca deixar meio-logado.
-              supabase.auth.signOut();
+              supabase.auth.signOut({ scope: 'local' });
               clearAuth();
             }
           });
@@ -167,7 +167,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         fetchUserProfile(existingSession.user.id)
           .then(({ user: appUser }) => {
             if (!appUser) {
-              supabase.auth.signOut();
+              supabase.auth.signOut({ scope: 'local' });
               clearAuth();
             }
           })
@@ -206,7 +206,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             p_motivo: 'sessao revogada pelo admin',
           });
           sessionStorage.setItem(MOTIVO_SAIDA, 'revogada');
-          await supabase.auth.signOut();
+          await supabase.auth.signOut({ scope: 'local' });
         }
       } catch {
         /* rede instável: tenta no próximo ciclo */
@@ -250,7 +250,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               p_sucesso: false,
               p_motivo: reason === 'inativo' ? 'perfil inativo' : 'sem acesso ao app waba',
             });
-            await supabase.auth.signOut();
+            await supabase.auth.signOut({ scope: 'local' });
             clearAuth();
             return { error: 'Você não tem acesso ao WABA' };
           }
@@ -269,7 +269,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     // Registra antes do signOut, enquanto a sessão (auth.uid) ainda existe.
     await registrarAcesso('logout');
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: 'local' });
     clearAuth();
   }, [registrarAcesso, clearAuth]);
 
