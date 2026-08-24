@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { temNivel } from '@/lib/roles';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import StatsCard from '@/components/dashboard/StatsCard';
 import ProjectCard from '@/components/dashboard/ProjectCard';
@@ -19,7 +20,6 @@ import QualityBadge from '@/components/dashboard/QualityBadge';
 import { Link, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { supabase } from '@/lib/supabase';
 import { supabase as lovableSupabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -29,8 +29,10 @@ const MasterDashboard = () => {
   const { data: projects = [] } = useProjects();
   const { data: numbers = [] } = useAllWhatsAppNumbers();
 
-  const activeUsers = users.filter(u => u.status === 'active' && u.role !== 'master').length;
-  const pendingUsers = users.filter(u => u.status === 'pending').length;
+  // useUsers() já retorna só quem tem acesso ativo ao app 'waba'.
+  // O antigo estado 'pending' deixou de existir: ou tem acesso, ou não aparece.
+  const activeUsers = users.filter(u => u.ativo && !temNivel(u.role, 'admin')).length;
+  const adminUsers = users.filter(u => temNivel(u.role, 'admin')).length;
 
   const statusCounts = {
     high: numbers.filter(n => n.qualityRating === 'HIGH').length,
@@ -41,7 +43,7 @@ const MasterDashboard = () => {
   return (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4 mb-8">
-        <StatsCard title="Usuários Ativos" value={activeUsers} subtitle={`${pendingUsers} pendentes`} icon={Users} variant="primary" />
+        <StatsCard title="Usuários Ativos" value={activeUsers} subtitle={`${adminUsers} administradores`} icon={Users} variant="primary" />
         <StatsCard title="Projetos" value={projects.length} icon={FolderKanban} />
         <StatsCard title="Números" value={numbers.length} icon={Phone} />
         <StatsCard title="Disparos" value={0} icon={Megaphone} />
@@ -355,7 +357,7 @@ const UserDashboard = () => {
 };
 
 const Dashboard = () => {
-  const { user, isMaster } = useAuth();
+  const { user, can } = useAuth();
 
   return (
     <DashboardLayout>
@@ -369,7 +371,7 @@ const Dashboard = () => {
             </span>
           </div>
           <p className="text-muted-foreground mt-1">
-            {isMaster ? 'Visão geral do sistema e gestão de usuários' : 'Monitore seus projetos e números WhatsApp'}
+            {can('admin') ? 'Visão geral do sistema e gestão de usuários' : 'Monitore seus projetos e números WhatsApp'}
           </p>
         </div>
         <Link to="/dashboard-v2" target="_blank">
@@ -380,7 +382,7 @@ const Dashboard = () => {
           </Button>
         </Link>
       </div>
-      {isMaster ? <MasterDashboard /> : <UserDashboard />}
+      {can('admin') ? <MasterDashboard /> : <UserDashboard />}
     </DashboardLayout>
   );
 };

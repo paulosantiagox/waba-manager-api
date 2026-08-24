@@ -18,7 +18,7 @@ import { useNumberErrorState } from '@/hooks/useNumberErrorState';
 import { WhatsAppNumber, BusinessManager, QualityRating } from '@/types';
 import { fetchPhoneNumberDetail, mapMetaQuality, mapMessagingLimit } from '@/services/metaApi';
 import { playNotificationSound } from '@/lib/sounds';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';

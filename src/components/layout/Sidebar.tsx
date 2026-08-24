@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+import { podeRota } from '@/lib/permissoes';
 import {
   LayoutDashboard,
   FolderKanban,
@@ -24,9 +25,11 @@ interface SidebarProps {
 }
 
 const Sidebar = ({ collapsed, onToggle, isMobile = false }: SidebarProps) => {
-  const { user, logout, isMaster } = useAuth();
+  const { user, logout, role } = useAuth();
   const location = useLocation();
 
+  // Mesma matriz das rotas (src/lib/permissoes.ts): o menu nunca mostra link
+  // que levaria a um redirect.
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
     { icon: LayoutDashboard, label: 'Dashboard V2', href: '/dashboard-v2' },
@@ -34,8 +37,8 @@ const Sidebar = ({ collapsed, onToggle, isMobile = false }: SidebarProps) => {
     { icon: Megaphone, label: 'Campanhas', href: '/campaigns' },
     { icon: Send, label: 'Disparos', href: '/broadcasts' },
     { icon: FileText, label: 'Templates', href: '/templates' },
-    ...(isMaster ? [{ icon: Users, label: 'Usuários', href: '/users' }] : []),
-  ];
+    { icon: Users, label: 'Usuários', href: '/users' },
+  ].filter((item) => podeRota(role, item.href));
 
   const isActive = (href: string) => location.pathname === href;
 

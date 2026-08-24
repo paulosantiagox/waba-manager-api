@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { Campaign, Broadcast, ActionType, CampaignShortcut, BroadcastStatus } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -7,10 +7,12 @@ import { toast } from 'sonner';
 // ===================== CAMPAIGNS =====================
 
 export function useCampaigns() {
-  const { user, isMaster } = useAuth();
+  const { user, can } = useAuth();
+  // admin+master enxergam todas as campanhas; user/consultor só as próprias.
+  const veTudo = can('admin');
 
   return useQuery({
-    queryKey: ['campaigns', user?.id, isMaster],
+    queryKey: ['campaigns', user?.id, veTudo],
     queryFn: async () => {
       if (!user) return [];
 
@@ -19,8 +21,8 @@ export function useCampaigns() {
         .select('*')
         .order('created_at', { ascending: false });
 
-      // If not master, filter by user_id
-      if (!isMaster) {
+      // Sem nível admin, filtra pelas próprias campanhas
+      if (!veTudo) {
         query = query.eq('user_id', user.id);
       }
 

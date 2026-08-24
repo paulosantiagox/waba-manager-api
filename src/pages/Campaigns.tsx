@@ -29,6 +29,7 @@ import BroadcastTemplateConfigModal, { getBroadcastTemplate } from '@/components
 import { format, parse } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn, copyToClipboard } from '@/lib/utils';
+import { podeAcao } from '@/lib/permissoes';
 
 const statusOptions: { value: BroadcastStatus; label: string; color: string }[] = [
   { value: 'preparing', label: 'Em preparação', color: 'bg-muted text-muted-foreground' },
@@ -38,7 +39,7 @@ const statusOptions: { value: BroadcastStatus; label: string; color: string }[] 
 ];
 
 const Campaigns = () => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const [selectedCampaign, setSelectedCampaign] = useState<string | null>(null);
   const [isNewCampaignOpen, setIsNewCampaignOpen] = useState(false);
   const [isActionTypesOpen, setIsActionTypesOpen] = useState(false);
@@ -51,6 +52,9 @@ const Campaigns = () => {
   const [isTemplateConfigOpen, setIsTemplateConfigOpen] = useState(false);
   const [editBroadcast, setEditBroadcast] = useState<Broadcast | null>(null);
   const [duplicateBroadcast, setDuplicateBroadcast] = useState<Broadcast | null>(null);
+  // Gates de ação (consultor = somente leitura; excluir = admin+)
+  const podeCriar = podeAcao(role, 'criar');
+  const podeExcluir = podeAcao(role, 'excluir');
   const [isNewBroadcastOpen, setIsNewBroadcastOpen] = useState(false);
   const [editActionType, setEditActionType] = useState<ActionType | null>(null);
   const [isNewActionTypeOpen, setIsNewActionTypeOpen] = useState(false);
@@ -275,7 +279,7 @@ const Campaigns = () => {
         <div className="flex items-center justify-between mb-2">
           <h1 className="text-2xl font-bold text-foreground">Campanhas de Disparo</h1>
           <Dialog open={isNewCampaignOpen} onOpenChange={setIsNewCampaignOpen}>
-            <DialogTrigger asChild><Button className="gradient-primary"><Plus className="w-4 h-4 mr-2" />Nova Campanha</Button></DialogTrigger>
+            <DialogTrigger asChild><Button className="gradient-primary" disabled={!podeCriar}><Plus className="w-4 h-4 mr-2" />Nova Campanha</Button></DialogTrigger>
             <DialogContent>
               <DialogHeader><DialogTitle>Criar Nova Campanha</DialogTitle></DialogHeader>
               <form className="space-y-4 mt-4" onSubmit={handleCreateCampaign}>
@@ -483,7 +487,7 @@ const Campaigns = () => {
                       <Settings className="w-4 h-4 mr-1" />
                       Config. Cópia
                     </Button>
-                    <Button size="sm" onClick={() => { setEditBroadcast(null); setDuplicateBroadcast(null); setIsNewBroadcastOpen(true); }}><Plus className="w-4 h-4 mr-1" />Registrar Disparo</Button>
+                    <Button size="sm" disabled={!podeCriar} onClick={() => { setEditBroadcast(null); setDuplicateBroadcast(null); setIsNewBroadcastOpen(true); }}><Plus className="w-4 h-4 mr-1" />Registrar Disparo</Button>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -538,6 +542,7 @@ const Campaigns = () => {
                                             variant="ghost"
                                             size="icon"
                                             className="h-8 w-8"
+                                            disabled={!podeCriar}
                                             onClick={() => { setEditBroadcast(null); setDuplicateBroadcast(broadcast); setIsNewBroadcastOpen(true); }}
                                           >
                                             <CopyPlus className="w-4 h-4" />
@@ -547,7 +552,7 @@ const Campaigns = () => {
                                       </Tooltip>
                                     </TooltipProvider>
                                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setDuplicateBroadcast(null); setEditBroadcast(broadcast); setIsNewBroadcastOpen(true); }}><Edit2 className="w-4 h-4" /></Button>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteItem({ type: 'broadcast', item: broadcast })}><Trash2 className="w-4 h-4" /></Button>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" disabled={!podeExcluir} onClick={() => setDeleteItem({ type: 'broadcast', item: broadcast })}><Trash2 className="w-4 h-4" /></Button>
                                   </div>
                                 </TableCell>
                               </TableRow>
@@ -567,7 +572,7 @@ const Campaigns = () => {
               <Megaphone className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
               <h3 className="font-medium text-lg mb-2">Nenhuma campanha selecionada</h3>
               <p className="text-muted-foreground mb-4">Crie sua primeira campanha para começar a registrar seus disparos.</p>
-              <Button className="gradient-primary" onClick={() => setIsNewCampaignOpen(true)}><Plus className="w-4 h-4 mr-2" />Criar Primeira Campanha</Button>
+              <Button className="gradient-primary" disabled={!podeCriar} onClick={() => setIsNewCampaignOpen(true)}><Plus className="w-4 h-4 mr-2" />Criar Primeira Campanha</Button>
             </Card>
           )}
         </div>

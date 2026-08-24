@@ -1,11 +1,13 @@
 // User types
+// role vem de user_app_access (padrão do grupo 3SMAX: master|admin|user|consultor|...).
+// `ativo` (boolean) substitui o antigo `status` string — o estado 'pending' deixou de existir.
 export interface User {
   id: string;
-  name: string;
+  name: string;       // user_profiles.nome
   email: string;
-  role: 'master' | 'user';
-  photo?: string;
-  status: 'active' | 'pending' | 'inactive';
+  role: string;       // app_role (user_app_access.role)
+  photo?: string;     // user_profiles.avatar_url
+  ativo: boolean;     // user_profiles.ativo
   createdAt: string;
   lastLogin?: string;
 }

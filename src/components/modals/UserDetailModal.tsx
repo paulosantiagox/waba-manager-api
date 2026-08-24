@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { User } from '@/types';
+import { temNivel } from '@/lib/roles';
 import { FolderKanban, Phone, Calendar, Clock, Mail, Shield, UserIcon } from 'lucide-react';
 
 interface UserDetailModalProps {
@@ -44,15 +45,15 @@ const UserDetailModal = ({ user, open, onOpenChange, projectsCount, numbersCount
 
           {/* Status and Role */}
           <div className="flex gap-3">
-            <Badge 
-              variant={user.status === 'active' ? 'default' : user.status === 'pending' ? 'secondary' : 'outline'} 
-              className={user.status === 'active' ? 'bg-success' : user.status === 'pending' ? 'bg-warning text-warning-foreground' : ''}
+            <Badge
+              variant={user.ativo ? 'default' : 'outline'}
+              className={user.ativo ? 'bg-success' : ''}
             >
-              {user.status === 'active' ? 'Ativo' : user.status === 'pending' ? 'Pendente' : 'Inativo'}
+              {user.ativo ? 'Ativo' : 'Inativo'}
             </Badge>
-            <Badge variant="outline" className="flex items-center gap-1">
-              {user.role === 'master' ? <Shield className="w-3 h-3" /> : <UserIcon className="w-3 h-3" />}
-              {user.role === 'master' ? 'Administrador' : 'Usuário'}
+            <Badge variant="outline" className="flex items-center gap-1 capitalize">
+              {temNivel(user.role, 'admin') ? <Shield className="w-3 h-3" /> : <UserIcon className="w-3 h-3" />}
+              {user.role}
             </Badge>
           </div>
 

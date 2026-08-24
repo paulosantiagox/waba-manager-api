@@ -1,13 +1,15 @@
 import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { Project } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 export function useProjects() {
-  const { user, isMaster } = useAuth();
+  const { user, can } = useAuth();
   const queryClient = useQueryClient();
+  // admin+master enxergam todos os projetos; user/consultor só os próprios.
+  const veTudo = can('admin');
 
   useEffect(() => {
     if (!user) return;
@@ -23,7 +25,7 @@ export function useProjects() {
         },
         () => {
           queryClient.invalidateQueries({ 
-            queryKey: ['projects', user?.id, isMaster] 
+            queryKey: ['projects', user?.id, veTudo] 
           });
           queryClient.invalidateQueries({ 
             queryKey: ['all-projects'] 
@@ -35,10 +37,10 @@ export function useProjects() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, isMaster, queryClient]);
+  }, [user, veTudo, queryClient]);
 
   return useQuery({
-    queryKey: ['projects', user?.id, isMaster],
+    queryKey: ['projects', user?.id, veTudo],
     queryFn: async () => {
       if (!user) return [];
       
@@ -47,8 +49,8 @@ export function useProjects() {
         .select('*')
         .order('created_at', { ascending: false });
 
-      // If not master, filter by user_id
-      if (!isMaster) {
+      // Sem nível admin, filtra pelos próprios projetos
+      if (!veTudo) {
         query = query.eq('user_id', user.id);
       }
 
@@ -72,7 +74,7 @@ export function useProjects() {
 
 // Hook for admin to get all projects (for user stats)
 export function useAllProjects() {
-  const { isMaster } = useAuth();
+  const { can } = useAuth();
 
   return useQuery({
     queryKey: ['all-projects'],
@@ -94,7 +96,7 @@ export function useAllProjects() {
         updatedAt: p.updated_at,
       }));
     },
-    enabled: isMaster,
+    enabled: can('admin'),
   });
 }
 

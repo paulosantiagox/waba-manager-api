@@ -11,7 +11,7 @@ import { User, Lock, Bell, LogOut, Camera, Loader2 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 
 const Settings = () => {
   const { user, logout, updateUser } = useAuth();

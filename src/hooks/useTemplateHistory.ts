@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase, SUPABASE_URL } from '@/lib/supabase';
+import { supabase, SUPABASE_URL } from '@/integrations/supabase/client';
 
 export interface TemplateStatusChange {
   id: string;

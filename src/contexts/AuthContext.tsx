@@ -1,278 +1,244 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Session } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { User as AppUser } from '@/types';
+import { nivelDe, temNivel } from '@/lib/roles';
+
+// Identificador deste sistema no cadastro central 3SMAX.
+const APP_ID = 'waba';
 
 interface AuthContextType {
   user: AppUser | null;
   session: Session | null;
   isLoading: boolean;
+  /** role padronizada vinda de user_app_access (master|admin|user|consultor). */
+  role: string | undefined;
+  /** true quando a role atual tem nível >= ao nível mínimo informado. */
+  can: (nivelMinimo: string) => boolean;
   login: (email: string, password: string) => Promise<{ error: string | null }>;
-  signup: (email: string, password: string, name: string) => Promise<{ error: string | null }>;
   logout: () => Promise<void>;
   updateUser: (updates: Partial<AppUser>) => Promise<void>;
   isAuthenticated: boolean;
-  isMaster: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+type DenyReason = 'sem_acesso' | 'inativo';
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
+  const [role, setRole] = useState<string | undefined>(undefined);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isMaster, setIsMaster] = useState(false);
 
-  const fetchUserProfile = useCallback(async (userId: string): Promise<{ user: AppUser | null; reason?: 'not_found' | 'pending' | 'inactive' }> => {
-    try {
-      // Fetch profile
-      const { data: profile, error: profileError } = await supabase
-        .from('waba_profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
-
-      if (profileError) {
-        console.error('Error fetching profile:', profileError);
-        return { user: null, reason: 'not_found' };
+  // Log central de acessos. A identidade vem de auth.uid() no banco — nunca
+  // mandamos user_id. Envolvido em try/catch: log que quebra o login é pior que
+  // log faltando.
+  const registrarAcesso = useCallback(
+    async (evento: string, extra?: { p_sucesso?: boolean; p_motivo?: string }) => {
+      try {
+        await supabase.rpc('registrar_acesso', {
+          p_app: APP_ID,
+          p_evento: evento,
+          p_user_agent: navigator.userAgent,
+          ...(extra ?? {}),
+        });
+      } catch (e) {
+        console.warn('[Auth] registrar_acesso falhou (ignorado):', e);
       }
+    },
+    []
+  );
 
-      if (!profile) {
-        return { user: null, reason: 'not_found' };
+  // Fonte de perfil e role: user_app_access + user_profiles (padrão 3SMAX).
+  const fetchUserProfile = useCallback(
+    async (userId: string): Promise<{ user: AppUser | null; reason?: DenyReason }> => {
+      try {
+        // 1) Acesso ativo a ESTE app + role padronizada
+        const { data: access, error: accessError } = await supabase
+          .from('user_app_access')
+          .select('role')
+          .eq('user_id', userId)
+          .eq('app', APP_ID)
+          .eq('ativo', true)
+          .maybeSingle();
+
+        if (accessError) console.error('[Auth] erro ao ler user_app_access:', accessError);
+
+        const userRole = (access?.role as string | undefined) ?? undefined;
+        // Sem acesso ao app, ou role fora do padrão (nível 0) → não entra.
+        if (!access || nivelDe(userRole) === 0) {
+          return { user: null, reason: 'sem_acesso' };
+        }
+
+        // 2) Perfil central (nome/avatar/ativo)
+        const { data: profile, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('nome, email, avatar_url, ativo, created_at')
+          .eq('id', userId)
+          .maybeSingle();
+
+        if (profileError) console.error('[Auth] erro ao ler user_profiles:', profileError);
+        if (!profile || profile.ativo !== true) {
+          return { user: null, reason: 'inativo' };
+        }
+
+        const appUser: AppUser = {
+          id: userId,
+          name: profile.nome || '',
+          email: profile.email || '',
+          role: userRole as string,
+          photo: profile.avatar_url || undefined,
+          ativo: true,
+          createdAt: profile.created_at,
+        };
+        setUser(appUser);
+        setRole(userRole);
+        return { user: appUser };
+      } catch (error) {
+        console.error('[Auth] erro em fetchUserProfile:', error);
+        return { user: null, reason: 'sem_acesso' };
       }
+    },
+    []
+  );
 
-      // Fetch roles (user may have multiple)
-      const { data: rolesData, error: roleError } = await supabase
-        .from('waba_user_roles')
-        .select('role')
-        .eq('user_id', userId);
-
-      if (roleError) {
-        console.error('Error fetching roles:', roleError);
-      }
-
-      const roles = (rolesData?.map(r => r.role) || []) as string[];
-      const hasMasterRole = roles.includes('master');
-      const primaryRole = hasMasterRole ? 'master' : (roles[0] || 'user');
-      setIsMaster(hasMasterRole);
-
-      // Block inactive users
-      if (profile.status === 'inactive') {
-        setUser(null);
-        setSession(null);
-        setIsMaster(false);
-        await supabase.auth.signOut();
-        return { user: null, reason: 'inactive' };
-      }
-
-      const appUser: AppUser = {
-        id: profile.id,
-        name: profile.name || '',
-        email: profile.email || '',
-        role: primaryRole as 'master' | 'user',
-        photo: profile.photo || undefined,
-        status: profile.status || 'active',
-        createdAt: profile.created_at,
-        lastLogin: profile.last_login || undefined,
-      };
-      setUser(appUser);
-      return { user: appUser };
-    } catch (error) {
-      console.error('Error in fetchUserProfile:', error);
-      return { user: null, reason: 'not_found' };
-    }
+  const clearAuth = useCallback(() => {
+    setUser(null);
+    setRole(undefined);
+    setSession(null);
   }, []);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, currentSession) => {
-        setSession(currentSession);
-        
-        if (currentSession?.user) {
-          // Defer Supabase calls with setTimeout
-          setTimeout(() => {
-            fetchUserProfile(currentSession.user.id).then(({ user: appUser, reason }) => {
-              if (!appUser && reason) {
-                // User blocked during session refresh - sign out handled in fetchUserProfile
-                console.log(`[Auth] Profile blocked: ${reason}`);
-              }
-            });
-          }, 0);
-        } else {
-          setUser(null);
-          setIsMaster(false);
-        }
-        
-        if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setIsMaster(false);
-        }
-      }
-    );
+    // Listener PRIMEIRO
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, currentSession) => {
+      setSession(currentSession);
 
-    // THEN check for existing session
+      if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setRole(undefined);
+        return;
+      }
+
+      if (currentSession?.user) {
+        // Defer chamadas ao Supabase
+        setTimeout(() => {
+          fetchUserProfile(currentSession.user.id).then(({ user: appUser }) => {
+            if (!appUser) {
+              // Sessão existe mas não tem acesso → nunca deixar meio-logado.
+              supabase.auth.signOut();
+              clearAuth();
+            }
+          });
+        }, 0);
+      } else {
+        setUser(null);
+        setRole(undefined);
+      }
+    });
+
+    // DEPOIS a sessão existente
     supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
       setSession(existingSession);
       if (existingSession?.user) {
-        fetchUserProfile(existingSession.user.id).then(({ user: appUser, reason }) => {
-          if (!appUser && reason === 'pending') {
-            setSession(null);
-          } else if (!appUser && reason === 'inactive') {
-            setSession(null);
-          }
-        }).finally(() => {
-          setIsLoading(false);
-        });
+        fetchUserProfile(existingSession.user.id)
+          .then(({ user: appUser }) => {
+            if (!appUser) {
+              supabase.auth.signOut();
+              clearAuth();
+            }
+          })
+          .finally(() => setIsLoading(false));
       } else {
         setIsLoading(false);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [fetchUserProfile]);
+  }, [fetchUserProfile, clearAuth]);
 
-  const login = useCallback(async (email: string, password: string): Promise<{ error: string | null }> => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+  const login = useCallback(
+    async (email: string, password: string): Promise<{ error: string | null }> => {
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-      if (error) {
-        if (error.message === 'Invalid login credentials') {
-          return { error: 'Email ou senha inválidos' };
-        }
-        return { error: error.message };
-      }
-
-      // Check profile status after login
-      const signedInUserId = data.user?.id;
-      if (signedInUserId) {
-        const { user: appUser, reason } = await fetchUserProfile(signedInUserId);
-        if (!appUser) {
-          if (reason === 'inactive') {
-            return { error: 'Sua conta está desativada. Fale com o administrador.' };
+        if (error) {
+          if (error.message === 'Invalid login credentials') {
+            return { error: 'Email ou senha inválidos' };
           }
-          return { error: 'Perfil não encontrado. Tente novamente ou entre em contato com o administrador.' };
+          return { error: error.message };
         }
-      }
 
-      return { error: null };
-    } catch (error) {
-      return { error: 'Erro ao fazer login' };
-    }
-  }, [fetchUserProfile]);
-
-  const signup = useCallback(async (email: string, password: string, name: string): Promise<{ error: string | null }> => {
-    try {
-      const redirectUrl = `${window.location.origin}/`;
-      
-      const { data: signUpData, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: redirectUrl,
-          data: {
-            name,
-          },
-        },
-      });
-
-      if (error) {
-        if (error.message.includes('already registered')) {
-          return { error: 'Este email já está cadastrado' };
-        }
-        return { error: error.message };
-      }
-
-      // Ativar usuario e fazer login automatico
-      if (signUpData?.user?.id) {
-        try {
-          // Delay para dar tempo ao trigger do banco criar o perfil
-          await new Promise(resolve => setTimeout(resolve, 3000));
-          
-          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-          const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-          
-          const response = await fetch(`${supabaseUrl}/functions/v1/admin-update-user-status`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${supabaseKey}`,
-              'apikey': supabaseKey,
-            },
-            body: JSON.stringify({ userId: signUpData.user.id, status: 'active' }),
-          });
-
-          const result = await response.json();
-          if (!response.ok || !result.success) {
-            console.error('[Auth] Falha ao ativar usuário:', result.error);
-          } else {
-            console.log('[Auth] Usuário ativado com sucesso:', result);
+        const signedInUserId = data.user?.id;
+        if (signedInUserId) {
+          const { user: appUser, reason } = await fetchUserProfile(signedInUserId);
+          if (!appUser) {
+            // Autenticou, mas não tem acesso a este sistema.
+            await registrarAcesso('acesso_negado', {
+              p_sucesso: false,
+              p_motivo: reason === 'inativo' ? 'perfil inativo' : 'sem acesso ao app waba',
+            });
+            await supabase.auth.signOut();
+            clearAuth();
+            return { error: 'Você não tem acesso ao WABA' };
           }
-        } catch (e) {
-          console.error('[Auth] Erro ao ativar usuário após signup:', e);
+          // Login válido e autorizado.
+          await registrarAcesso('login');
         }
 
-        // Login automático após signup
-        try {
-          const { error: loginError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-          if (loginError) {
-            console.error('[Auth] Erro no login automático:', loginError);
-          } else {
-            console.log('[Auth] Login automático realizado com sucesso');
-          }
-        } catch (e) {
-          console.error('[Auth] Erro no login automático:', e);
-        }
+        return { error: null };
+      } catch (error) {
+        return { error: 'Erro ao fazer login' };
       }
-
-      return { error: null };
-    } catch (error) {
-      return { error: 'Erro ao criar conta' };
-    }
-  }, []);
+    },
+    [fetchUserProfile, registrarAcesso, clearAuth]
+  );
 
   const logout = useCallback(async () => {
+    // Registra antes do signOut, enquanto a sessão (auth.uid) ainda existe.
+    await registrarAcesso('logout');
     await supabase.auth.signOut();
-    setUser(null);
-    setSession(null);
-    setIsMaster(false);
-  }, []);
+    clearAuth();
+  }, [registrarAcesso, clearAuth]);
 
-  const updateUser = useCallback(async (updates: Partial<AppUser>) => {
-    if (!user) return;
+  // Edição self-service do próprio perfil central (nome/foto).
+  const updateUser = useCallback(
+    async (updates: Partial<AppUser>) => {
+      if (!user) return;
 
-    const { error } = await supabase
-      .from('waba_profiles')
-      .update({
-        name: updates.name,
-        email: updates.email,
-        photo: updates.photo,
-      })
-      .eq('id', user.id);
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({
+          nome: updates.name,
+          avatar_url: updates.photo,
+        })
+        .eq('id', user.id);
 
-    if (!error) {
-      setUser(prev => prev ? { ...prev, ...updates } : null);
-    }
-  }, [user]);
+      if (!error) {
+        setUser((prev) => (prev ? { ...prev, ...updates } : null));
+      }
+    },
+    [user]
+  );
+
+  const can = useCallback((nivelMinimo: string) => temNivel(role, nivelMinimo), [role]);
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      session,
-      isLoading,
-      login,
-      signup,
-      logout,
-      updateUser,
-      isAuthenticated: !!session,
-      isMaster,
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        isLoading,
+        role,
+        can,
+        login,
+        logout,
+        updateUser,
+        isAuthenticated: !!session,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

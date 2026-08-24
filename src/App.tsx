@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { nivelDaRota } from "@/lib/permissoes";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects";
@@ -20,70 +21,48 @@ import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, isLoading } = useAuth();
-  
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-  
-  if (!isAuthenticated) {
-    return <Navigate to="/auth" replace />;
-  }
-  
-  return <>{children}</>;
-};
+const Carregando = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+  </div>
+);
 
-const MasterRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, isMaster, isLoading } = useAuth();
-  
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-  
-  if (!isAuthenticated) {
-    return <Navigate to="/auth" replace />;
-  }
-  
-  if (!isMaster) {
-    return <Navigate to="/dashboard" replace />;
-  }
-  
+// Rota protegida genérica por NÍVEL MÍNIMO (padrão do grupo 3SMAX).
+// Serve para qualquer nível — substitui o antigo MasterRoute/booleano isMaster.
+const RotaProtegida = ({
+  nivelMinimo = "consultor",
+  children,
+}: {
+  nivelMinimo?: string;
+  children: React.ReactNode;
+}) => {
+  const { isAuthenticated, isLoading, can } = useAuth();
+
+  if (isLoading) return <Carregando />;
+  if (!isAuthenticated) return <Navigate to="/auth" replace />;
+  if (!can(nivelMinimo)) return <Navigate to="/dashboard" replace />;
+
   return <>{children}</>;
 };
 
 const AppRoutes = () => {
   const { isAuthenticated, isLoading } = useAuth();
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  if (isLoading) return <Carregando />;
 
   return (
     <Routes>
       <Route path="/auth" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Auth />} />
       <Route path="/" element={<Navigate to={isAuthenticated ? "/dashboard" : "/auth"} replace />} />
-      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/dashboard-v2" element={<ProtectedRoute><DashboardV2 /></ProtectedRoute>} />
-      <Route path="/projects" element={<ProtectedRoute><Projects /></ProtectedRoute>} />
-      <Route path="/projects/:id" element={<ProtectedRoute><ProjectDetail /></ProtectedRoute>} />
-      <Route path="/campaigns" element={<ProtectedRoute><Campaigns /></ProtectedRoute>} />
-      <Route path="/broadcasts" element={<ProtectedRoute><Broadcasts /></ProtectedRoute>} />
-      <Route path="/templates" element={<ProtectedRoute><Templates /></ProtectedRoute>} />
-      <Route path="/users" element={<MasterRoute><UsersPage /></MasterRoute>} />
-      <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+      <Route path="/dashboard" element={<RotaProtegida nivelMinimo={nivelDaRota("/dashboard")}><Dashboard /></RotaProtegida>} />
+      <Route path="/dashboard-v2" element={<RotaProtegida nivelMinimo={nivelDaRota("/dashboard-v2")}><DashboardV2 /></RotaProtegida>} />
+      <Route path="/projects" element={<RotaProtegida nivelMinimo={nivelDaRota("/projects")}><Projects /></RotaProtegida>} />
+      <Route path="/projects/:id" element={<RotaProtegida nivelMinimo={nivelDaRota("/projects")}><ProjectDetail /></RotaProtegida>} />
+      <Route path="/campaigns" element={<RotaProtegida nivelMinimo={nivelDaRota("/campaigns")}><Campaigns /></RotaProtegida>} />
+      <Route path="/broadcasts" element={<RotaProtegida nivelMinimo={nivelDaRota("/broadcasts")}><Broadcasts /></RotaProtegida>} />
+      <Route path="/templates" element={<RotaProtegida nivelMinimo={nivelDaRota("/templates")}><Templates /></RotaProtegida>} />
+      <Route path="/users" element={<RotaProtegida nivelMinimo={nivelDaRota("/users")}><UsersPage /></RotaProtegida>} />
+      <Route path="/settings" element={<RotaProtegida nivelMinimo={nivelDaRota("/settings")}><Settings /></RotaProtegida>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
