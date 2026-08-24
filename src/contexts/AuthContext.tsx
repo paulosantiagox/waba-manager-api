@@ -222,7 +222,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!parado) ping();
     }, 15000);
 
-    return () => clearInterval(t);
+    // O navegador desacelera o setInterval em abas ocultas; ao voltar para a
+    // aba, checa na hora em vez de esperar o próximo ciclo.
+    const onVisible = () => {
+      if (!parado && document.visibilityState === 'visible') ping();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      clearInterval(t);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [temSessao, registrarAcesso, clearAuth]);
 
   const login = useCallback(
