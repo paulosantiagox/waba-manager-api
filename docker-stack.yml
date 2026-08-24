@@ -1,0 +1,19 @@
+version: "3.9"
+
+services:
+  waba-manager-api:
+    image: waba-manager-api:latest
+    networks: [OrionNet]
+    deploy:
+      replicas: 1
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=OrionNet
+        - traefik.http.routers.waba-manager-api.rule=Host(`waba-manager-api.3smax.com`)
+        - traefik.http.routers.waba-manager-api.entrypoints=websecure
+        - traefik.http.routers.waba-manager-api.tls.certresolver=letsencryptresolver
+        - traefik.http.services.waba-manager-api.loadbalancer.server.port=80
+
+networks:
+  OrionNet:
+    external: true
