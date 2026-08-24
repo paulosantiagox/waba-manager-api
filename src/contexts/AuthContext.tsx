@@ -207,6 +207,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           });
           sessionStorage.setItem(MOTIVO_SAIDA, 'revogada');
           await supabase.auth.signOut({ scope: 'local' });
+          // Zera o estado na hora: isAuthenticated = !!session, e o signOut de
+          // uma sessão já revogada no servidor nem sempre dispara o SIGNED_OUT.
+          clearAuth();
         }
       } catch {
         /* rede instável: tenta no próximo ciclo */
@@ -220,7 +223,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, 15000);
 
     return () => clearInterval(t);
-  }, [temSessao, registrarAcesso]);
+  }, [temSessao, registrarAcesso, clearAuth]);
 
   const login = useCallback(
     async (email: string, password: string): Promise<{ error: string | null }> => {
