@@ -7,6 +7,10 @@ import { nivelDe, temNivel } from '@/lib/roles';
 // Identificador deste sistema no cadastro central 3SMAX.
 const APP_ID = 'waba';
 
+// Marca por que a sessão caiu, para a tela de login explicar em vez de só
+// jogar a pessoa para fora sem contexto.
+export const MOTIVO_SAIDA = 'waba:motivo-saida';
+
 interface AuthContextType {
   user: AppUser | null;
   session: Session | null;
@@ -176,28 +180,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [fetchUserProfile, clearAuth]);
 
-  // Heartbeat de sessão: se o admin revoga a sessão no Painel Geral, derruba na
-  // hora em vez de esperar o token expirar (~1h). A RPC lê o session_id do
-  // próprio JWT e só retorna false quando a sessão foi revogada — em qualquer
-  // erro retorna true, então nunca desloga por engano.
+  // Heartbeat de presença + sessão (padrão 3SMAX). A cada 15s registra a
+  // presença — é o que faz a pessoa aparecer no "Online agora" do Painel Geral
+  // e sumir de lá em ~40s ao fechar a aba — e, na mesma chamada, detecta
+  // revogação: a RPC retorna false só quando o admin encerrou a sessão. O
+  // `data === false` é explícito de propósito (dupla trava): erro de rede ou
+  // undefined nunca deslogam por engano. Identidade e IP saem do JWT/headers
+  // no banco — nada disso é enviado pelo cliente.
   const temSessao = !!session;
   useEffect(() => {
     if (!temSessao) return;
 
-    const t = setInterval(async () => {
+    // `parado` evita pings concorrentes depois da revogação; o interval em si é
+    // limpo no cleanup, que dispara assim que o signOut zera a sessão.
+    let parado = false;
+
+    const ping = async () => {
       try {
-        const { data, error } = await supabase.rpc('sessao_ativa');
+        const { data, error } = await supabase.rpc('presenca_ping', { p_app: APP_ID });
         if (!error && data === false) {
-          clearInterval(t);
-          await supabase.auth.signOut(); // cai para o login
+          parado = true;
+          // sessão revogada pelo admin → cai para o login
+          await registrarAcesso('sessao_expirada', {
+            p_sucesso: false,
+            p_motivo: 'sessao revogada pelo admin',
+          });
+          sessionStorage.setItem(MOTIVO_SAIDA, 'revogada');
+          await supabase.auth.signOut();
         }
       } catch {
         /* rede instável: tenta no próximo ciclo */
       }
-    }, 20000);
+    };
+
+    // ping imediato ao montar, para aparecer no "Online agora" sem esperar 15s
+    ping();
+    const t = setInterval(() => {
+      if (!parado) ping();
+    }, 15000);
 
     return () => clearInterval(t);
-  }, [temSessao]);
+  }, [temSessao, registrarAcesso]);
 
   const login = useCallback(
     async (email: string, password: string): Promise<{ error: string | null }> => {

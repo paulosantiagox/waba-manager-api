@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth, MOTIVO_SAIDA } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,6 +22,14 @@ const Auth = () => {
       navigate('/dashboard');
     }
   }, [isAuthenticated, isLoading, navigate]);
+
+  // Explica a saída quando o heartbeat detecta que o admin encerrou a sessão.
+  useEffect(() => {
+    if (sessionStorage.getItem(MOTIVO_SAIDA) === 'revogada') {
+      sessionStorage.removeItem(MOTIVO_SAIDA);
+      toast.error('Sua sessão foi encerrada pelo administrador.');
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
