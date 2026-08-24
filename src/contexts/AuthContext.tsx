@@ -176,6 +176,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [fetchUserProfile, clearAuth]);
 
+  // Heartbeat de sessão: se o admin revoga a sessão no Painel Geral, derruba na
+  // hora em vez de esperar o token expirar (~1h). A RPC lê o session_id do
+  // próprio JWT e só retorna false quando a sessão foi revogada — em qualquer
+  // erro retorna true, então nunca desloga por engano.
+  const temSessao = !!session;
+  useEffect(() => {
+    if (!temSessao) return;
+
+    const t = setInterval(async () => {
+      try {
+        const { data, error } = await supabase.rpc('sessao_ativa');
+        if (!error && data === false) {
+          clearInterval(t);
+          await supabase.auth.signOut(); // cai para o login
+        }
+      } catch {
+        /* rede instável: tenta no próximo ciclo */
+      }
+    }, 20000);
+
+    return () => clearInterval(t);
+  }, [temSessao]);
+
   const login = useCallback(
     async (email: string, password: string): Promise<{ error: string | null }> => {
       try {
