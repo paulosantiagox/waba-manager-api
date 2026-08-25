@@ -16,8 +16,13 @@ Deno.serve(async (req) => {
   try {
     const { manual = false } = await req.json().catch(() => ({ manual: false }))
     
-    // Usa a service key do Supabase pessoal
-    const personalServiceKey = Deno.env.get('PERSONAL_SUPABASE_SERVICE_KEY') ?? ''
+    // A function roda no MESMO projeto onde estão os dados, então quando o
+    // secret dedicado não existir usamos a service role key que o Supabase
+    // injeta automaticamente em toda edge function.
+    const personalServiceKey =
+      Deno.env.get('PERSONAL_SUPABASE_SERVICE_KEY') ||
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ||
+      ''
     
     console.log('[AUTO_UPDATE] ========================================')
     console.log('[AUTO_UPDATE] Iniciando verificação -', new Date().toISOString())
