@@ -14,8 +14,10 @@ import {
   ChevronRight,
   RefreshCw,
   Clock,
-  ListFilter
+  ListFilter,
+  Ban
 } from 'lucide-react';
+import { numeroBloqueado, rotuloStatusNumero } from '@/hooks/useAccountHealth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -109,10 +111,18 @@ const DashboardV2 = () => {
     return `${days}d`;
   };
 
-  const renderNumberCard = (number: any) => (
-    <Card 
-      key={number.id} 
-      className="overflow-hidden border-none shadow-sm hover:shadow-md transition-shadow group cursor-pointer"
+  const renderNumberCard = (number: any) => {
+    // Bloqueio na Meta prevalece sobre a qualidade: banido segue com GREEN.
+    const bloqueado = numeroBloqueado(number.metaStatus);
+    const rotuloBloqueio = rotuloStatusNumero(number.metaStatus);
+
+    return (
+    <Card
+      key={number.id}
+      className={cn(
+        "overflow-hidden border-none shadow-sm hover:shadow-md transition-shadow group cursor-pointer",
+        bloqueado && "ring-2 ring-destructive/60 bg-destructive/5"
+      )}
       onClick={() => setSelectedNumberId(number.id)}
     >
       <CardContent className="p-3">
@@ -133,6 +143,12 @@ const DashboardV2 = () => {
             </div>
           </div>
           <div className="flex flex-col items-end gap-1">
+            {rotuloBloqueio && (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-destructive text-destructive-foreground">
+                <Ban className="w-2.5 h-2.5" />
+                {rotuloBloqueio.toUpperCase()}
+              </span>
+            )}
             <QualityBadge rating={number.qualityRating} size="sm" />
           </div>
         </div>
@@ -174,7 +190,8 @@ const DashboardV2 = () => {
         </div>
       </CardContent>
     </Card>
-  );
+    );
+  };
 
   if (loadingProjects || loadingNumbers) {
     return (
