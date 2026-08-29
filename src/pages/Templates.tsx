@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { useWabaAccounts, useTemplatesForWaba, WabaAccount } from '@/hooks/useWabaTemplates';
+import { useWabaAccounts, useTemplatesForWaba, useWabaNames, WabaAccount } from '@/hooks/useWabaTemplates';
 import { MetaTemplate } from '@/services/metaApi';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -257,7 +257,7 @@ function TemplateCard({ template, broadcastStats, snapshotStatus, snapshotCatego
 
 // ─── Templates panel ──────────────────────────────────────────────────────────
 
-function TemplatesPanel({ account }: { account: WabaAccount }) {
+function TemplatesPanel({ account, wabaName }: { account: WabaAccount; wabaName?: string }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
@@ -328,8 +328,11 @@ function TemplatesPanel({ account }: { account: WabaAccount }) {
           </div>
           <div className="flex items-center gap-2">
             <p className="text-xs text-muted-foreground truncate">
+              {wabaName ? <><span className="font-medium">{wabaName}</span> · </> : null}
               WABA {account.wabaId}
-              {account.numberNames.length > 0 && <> · {account.numberNames.join(' · ')}</>}
+              {account.numberNames.length > 0 && (
+                <> · {account.numberNames.length} número{account.numberNames.length === 1 ? '' : 's'}: {account.numberNames.join(' · ')}</>
+              )}
             </p>
             {updatedAt && (
               <span className="text-xs text-muted-foreground shrink-0">
@@ -454,10 +457,12 @@ function AccountTree({
   accounts,
   selectedWabaId,
   onSelect,
+  wabaNames = {},
 }: {
   accounts: WabaAccount[];
   selectedWabaId: string | null;
   onSelect: (account: WabaAccount) => void;
+  wabaNames?: Record<string, string>;
 }) {
   const byProject = useMemo(() => {
     const map = new Map<string, { name: string; accounts: WabaAccount[] }>();
@@ -510,15 +515,21 @@ function AccountTree({
                   )}
                 >
                   <MessageSquare className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-                  <div className="min-w-0">
-                    <p className="truncate text-xs font-medium">{acc.numberNames[0] ?? acc.wabaId}</p>
-                    {acc.numberNames.length > 1 && (
-                      <p className={cn('text-xs', selectedWabaId === acc.wabaId ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
-                        +{acc.numberNames.length - 1} número(s)
-                      </p>
+                  <div className="min-w-0 flex-1">
+                    {/* Título: nome da WABA na Meta quando disponível */}
+                    <p className="truncate text-xs font-medium">
+                      {wabaNames[acc.wabaId] || acc.numberNames[0] || acc.wabaId}
+                    </p>
+                    {/* Todos os números da WABA, um por linha */}
+                    {acc.numberNames.length > 0 && (
+                      <ul className={cn('mt-0.5 space-y-0.5', selectedWabaId === acc.wabaId ? 'text-primary-foreground/75' : 'text-muted-foreground')}>
+                        {acc.numberNames.map((nome, i) => (
+                          <li key={`${nome}-${i}`} className="text-xs truncate">• {nome}</li>
+                        ))}
+                      </ul>
                     )}
                     <p className={cn('text-xs truncate mt-0.5', selectedWabaId === acc.wabaId ? 'text-primary-foreground/60' : 'text-muted-foreground/60')}>
-                      {acc.wabaId}
+                      {acc.numberNames.length} número{acc.numberNames.length === 1 ? '' : 's'} · {acc.wabaId}
                     </p>
                   </div>
                 </button>
@@ -740,6 +751,7 @@ function StatusChangeHistory() {
 
 export default function Templates() {
   const { data: accounts = [], isLoading: loadingAccounts } = useWabaAccounts();
+  const { data: wabaNames = {} } = useWabaNames(accounts);
   const [selectedAccount, setSelectedAccount] = useState<WabaAccount | null>(null);
   const [creatorOpen, setCreatorOpen] = useState(false);
   const [drawerInitialValues, setDrawerInitialValues] = useState<TemplateInitialValues | undefined>(undefined);
@@ -822,6 +834,7 @@ export default function Templates() {
                 accounts={accounts}
                 selectedWabaId={resolvedAccount?.wabaId ?? null}
                 onSelect={setSelectedAccount}
+                wabaNames={wabaNames}
               />
             )}
           </div>
@@ -859,7 +872,7 @@ export default function Templates() {
           <div className="flex-1 p-6">
             {activeTab === 'templates' ? (
               resolvedAccount ? (
-                <TemplatesPanel key={resolvedAccount.wabaId} account={resolvedAccount} />
+                <TemplatesPanel key={resolvedAccount.wabaId} account={resolvedAccount} wabaName={wabaNames[resolvedAccount.wabaId]} />
               ) : (
                 <div className="flex flex-col items-center justify-center py-32 gap-4 text-center">
                   <MessageSquare className="w-14 h-14 text-muted-foreground/30" />

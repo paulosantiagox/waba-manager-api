@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { fetchWabaTemplates, MetaTemplate } from '@/services/metaApi';
+import { fetchWabaTemplates, fetchWABAName, MetaTemplate } from '@/services/metaApi';
 import { useProjects } from './useProjects';
 
 export interface WabaAccount {
@@ -92,6 +92,35 @@ export function useWabaAccounts() {
     },
     enabled: projects.length > 0,
     staleTime: 60000,
+  });
+}
+
+/**
+ * Nome da WABA na Meta (wabaId → nome). A Meta não devolve isso junto com os
+ * números, então busca uma vez por conta e guarda por 30 min. Falha em uma
+ * conta não derruba as outras — o nome simplesmente não aparece.
+ */
+export function useWabaNames(accounts: WabaAccount[]) {
+  const ids = accounts.map(a => a.wabaId).sort();
+
+  return useQuery({
+    queryKey: ['waba-names', ids],
+    queryFn: async (): Promise<Record<string, string>> => {
+      const entries = await Promise.all(
+        accounts.map(async acc => {
+          try {
+            const { name } = await fetchWABAName(acc.wabaId, acc.accessToken);
+            return [acc.wabaId, name] as const;
+          } catch {
+            return [acc.wabaId, ''] as const;
+          }
+        })
+      );
+      return Object.fromEntries(entries.filter(([, name]) => !!name));
+    },
+    enabled: accounts.length > 0,
+    staleTime: 30 * 60 * 1000,
+    retry: false,
   });
 }
 
