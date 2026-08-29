@@ -58,6 +58,12 @@ export interface WhatsAppNumber {
   lastChecked: string;
   previousQuality?: QualityRating;
   lastStatusChange?: string;
+  /** status do número na Meta (CONNECTED | BANNED | FLAGGED | RESTRICTED...).
+   *  quality_rating segue GREEN mesmo banido — é este campo que denuncia. */
+  metaStatus?: string;
+  /** name_status na Meta (APPROVED | DECLINED | PENDING_REVIEW...) */
+  nameStatus?: string;
+  healthCheckedAt?: string;
 }
 
 // Status History types

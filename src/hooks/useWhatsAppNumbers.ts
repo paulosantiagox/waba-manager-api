@@ -68,6 +68,9 @@ export function useWhatsAppNumbers(projectId?: string) {
         lastChecked: n.last_checked,
         previousQuality: n.previous_quality as QualityRating | undefined,
         lastStatusChange: n.last_status_change || undefined,
+        metaStatus: n.meta_status || undefined,
+        nameStatus: n.name_status || undefined,
+        healthCheckedAt: n.health_checked_at || undefined,
       }));
     },
     enabled: projectId !== undefined,
@@ -129,6 +132,9 @@ export function useAllWhatsAppNumbers() {
         lastChecked: n.last_checked,
         previousQuality: n.previous_quality as QualityRating | undefined,
         lastStatusChange: n.last_status_change || undefined,
+        metaStatus: n.meta_status || undefined,
+        nameStatus: n.name_status || undefined,
+        healthCheckedAt: n.health_checked_at || undefined,
       }));
     },
   });

@@ -3,8 +3,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import QualityBadge from './QualityBadge';
-import { Phone, History, Edit2, Trash2, MessageCircle, Eye, EyeOff, Tag } from 'lucide-react';
+import { Phone, History, Edit2, Trash2, MessageCircle, Eye, EyeOff, Tag, Ban, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { numeroBloqueado, rotuloStatusNumero } from '@/hooks/useAccountHealth';
 import { addDays, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -35,17 +36,26 @@ const NumberCard = ({ number, onViewHistory, onEdit, onDelete, onToggleVisibilit
 
   const days = daysToRecovery();
 
+  // Bloqueio na Meta tem prioridade sobre a qualidade: um número BANIDO segue
+  // com quality_rating GREEN, então sem isto ele aparecia como "🟢 Alta".
+  const bloqueado = numeroBloqueado(number.metaStatus);
+  const rotuloBloqueio = rotuloStatusNumero(number.metaStatus);
+  const nomeReprovado = number.nameStatus === 'DECLINED';
+
   return (
     <Card className={cn(
       "overflow-hidden transition-all duration-300 hover:shadow-elevated animate-slide-up",
-      !number.isVisible && "opacity-50 grayscale scale-95"
+      !number.isVisible && "opacity-50 grayscale scale-95",
+      bloqueado && "ring-2 ring-destructive/60"
     )}>
       {/* Status indicator bar */}
       <div className={cn(
         "h-1",
-        number.qualityRating === 'HIGH' && "gradient-success",
-        number.qualityRating === 'MEDIUM' && "gradient-warning",
-        number.qualityRating === 'LOW' && "gradient-danger"
+        bloqueado ? "bg-destructive" : [
+          number.qualityRating === 'HIGH' && "gradient-success",
+          number.qualityRating === 'MEDIUM' && "gradient-warning",
+          number.qualityRating === 'LOW' && "gradient-danger",
+        ]
       )} />
       
       <CardContent className="p-5">
@@ -91,12 +101,38 @@ const NumberCard = ({ number, onViewHistory, onEdit, onDelete, onToggleVisibilit
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              {/* Bloqueio na Meta vem primeiro — é o que importa de fato */}
+              {rotuloBloqueio && (
+                <span className={cn(
+                  'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold',
+                  bloqueado
+                    ? 'bg-destructive text-destructive-foreground'
+                    : 'bg-warning/15 text-warning border border-warning/30'
+                )}>
+                  <Ban className="w-3 h-3" />
+                  {rotuloBloqueio}
+                </span>
+              )}
               <QualityBadge rating={number.qualityRating} size="sm" />
               <span className="text-sm text-muted-foreground flex items-center gap-1">
                 <MessageCircle className="w-3 h-3" />
                 {number.messagingLimitTier}
               </span>
             </div>
+
+            {nomeReprovado && (
+              <p className="text-xs text-warning flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                Nome comercial reprovado pela Meta
+              </p>
+            )}
+
+            {bloqueado && (
+              <p className="text-xs text-destructive flex items-center gap-1">
+                <Ban className="w-3 h-3 flex-shrink-0" />
+                Número não pode enviar mensagens — verifique em business.facebook.com/accountquality
+              </p>
+            )}
 
             {recoveryDate && (
               <p className={cn(

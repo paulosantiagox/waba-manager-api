@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { temNivel } from '@/lib/roles';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -23,6 +23,9 @@ import { ptBR } from 'date-fns/locale';
 import { supabase as lovableSupabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useVerificarSaude, useWabaHealth, numeroBloqueado, rotuloStatusNumero } from '@/hooks/useAccountHealth';
+import { useWabaAccounts as useAccounts } from '@/hooks/useWabaTemplates';
+import { Ban } from 'lucide-react';
 
 const MasterDashboard = () => {
   const { data: users = [] } = useUsers();
@@ -146,6 +149,39 @@ const UserDashboard = () => {
   const projectIds = projects.map(p => p.id);
   const { data: recentChanges = [], refetch: refetchChanges } = useRecentStatusChanges(projectIds);
 
+  // Contas WABA (trazem o token da BM) para a verificação de bloqueios.
+  const { data: wabaAccounts = [] } = useAccounts();
+  const { mutateAsync: verificarSaude } = useVerificarSaude();
+
+  const tokenPorWaba = useMemo(
+    () => Object.fromEntries(wabaAccounts.map(a => [a.wabaId, a.accessToken])),
+    [wabaAccounts]
+  );
+
+  const numerosParaChecar = useMemo(
+    () =>
+      allNumbers
+        .filter(n => n.isVisible && n.phoneNumberId && tokenPorWaba[n.wabaId])
+        .map(n => ({ id: n.id, phoneNumberId: n.phoneNumberId, accessToken: tokenPorWaba[n.wabaId] })),
+    [allNumbers, tokenPorWaba]
+  );
+
+  const contasParaChecar = useMemo(
+    () => wabaAccounts.map(a => ({ wabaId: a.wabaId, accessToken: a.accessToken })),
+    [wabaAccounts]
+  );
+
+  // Avisos já verificados (lidos do banco)
+  const { data: saudeWabas = {} } = useWabaHealth();
+  const numerosBloqueados = useMemo(
+    () => allNumbers.filter(n => n.isVisible && numeroBloqueado(n.metaStatus)),
+    [allNumbers]
+  );
+  const contasBloqueadas = useMemo(
+    () => Object.values(saudeWabas).filter(c => c.canSendMessage === 'BLOCKED'),
+    [saudeWabas]
+  );
+
   const handleUpdateAll = async () => {
     setIsUpdating(true);
     try {
@@ -165,6 +201,20 @@ const UserDashboard = () => {
       toast.success(`${data.numbersUpdated} números atualizados com sucesso!`);
       refetchNumbers();
       refetchChanges();
+
+      // Verifica bloqueios na Meta (banido/restrito/pagamento). A edge function
+      // só traz qualidade, que segue GREEN mesmo com o número banido.
+      try {
+        const r = await verificarSaude({ numeros: numerosParaChecar, contas: contasParaChecar });
+        if (r.numerosBloqueados > 0 || r.wabasBloqueadas > 0) {
+          toast.warning(
+            `Atenção: ${r.numerosBloqueados} número(s) bloqueado(s) e ${r.wabasBloqueadas} conta(s) sem envio.`,
+            { duration: 8000 }
+          );
+        }
+      } catch (e) {
+        console.error('[saude] falha ao verificar bloqueios:', e);
+      }
     } catch (error: any) {
       console.error('Error updating status:', error);
       toast.error(`Erro ao atualizar números: ${error.message || 'Erro desconhecido'}`);
@@ -202,6 +252,39 @@ const UserDashboard = () => {
 
   return (
     <>
+      {/* Avisos da Meta: números bloqueados e contas sem envio */}
+      {(numerosBloqueados.length > 0 || contasBloqueadas.length > 0) && (
+        <div className="mb-6 rounded-xl border border-destructive/40 bg-destructive/5 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Ban className="w-4 h-4 text-destructive" />
+            <h3 className="font-semibold text-destructive text-sm">Restrições detectadas na Meta</h3>
+          </div>
+
+          {numerosBloqueados.length > 0 && (
+            <p className="text-sm text-foreground/80 mb-1">
+              <strong>{numerosBloqueados.length} número(s) bloqueado(s):</strong>{' '}
+              {numerosBloqueados
+                .map(n => `${n.customName || n.verifiedName} (${rotuloStatusNumero(n.metaStatus)})`)
+                .join(', ')}
+            </p>
+          )}
+
+          {contasBloqueadas.map(c => (
+            <p key={c.wabaId} className="text-sm text-foreground/80">
+              <strong>{c.wabaName ?? c.wabaId}:</strong>{' '}
+              {c.errors.length > 0
+                ? c.errors.map(e => e.error_description).join(' · ')
+                : 'conta sem permissão de envio'}
+            </p>
+          ))}
+
+          <p className="text-xs text-muted-foreground mt-2">
+            Verifique em business.facebook.com/accountquality. Erro de pagamento se resolve
+            atualizando o meio de pagamento da conta.
+          </p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
         <StatsCard title="Meus Projetos" value={projects.length} icon={FolderKanban} variant="primary" />
         <StatsCard title="Números Ativos" value={userNumbers.length} icon={Phone} />

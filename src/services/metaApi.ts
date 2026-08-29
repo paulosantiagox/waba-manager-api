@@ -238,6 +238,82 @@ export const createWabaTemplate = async (
   };
 };
 
+// ─── Saúde da conta / do número ───────────────────────────────────────────────
+
+/** status do número na Meta. quality_rating segue GREEN mesmo banido — é aqui que aparece. */
+export type MetaNumberStatus =
+  | 'CONNECTED' | 'BANNED' | 'FLAGGED' | 'RESTRICTED' | 'RATE_LIMITED'
+  | 'PENDING' | 'DELETED' | 'MIGRATED' | 'UNVERIFIED' | 'UNKNOWN';
+
+export interface MetaNumberHealth {
+  id: string;
+  display_phone_number?: string;
+  status?: MetaNumberStatus;
+  name_status?: string;
+  quality_rating?: string;
+  messaging_limit_tier?: string;
+}
+
+export interface MetaHealthError {
+  error_code: number;
+  error_description: string;
+  possible_solution?: string;
+}
+
+export interface MetaWabaHealth {
+  id: string;
+  name?: string;
+  status?: string;
+  account_review_status?: string;
+  canSendMessage?: 'AVAILABLE' | 'LIMITED' | 'BLOCKED';
+  errors: MetaHealthError[];
+}
+
+/** Status real de um número (CONNECTED/BANNED/FLAGGED...). */
+export const fetchNumberHealth = async (
+  phoneId: string,
+  accessToken: string
+): Promise<MetaNumberHealth> => {
+  const fields = 'id,display_phone_number,status,name_status,quality_rating,messaging_limit_tier';
+  const response = await fetch(`${META_API_BASE}/${phoneId}?fields=${fields}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error?.message || 'Erro ao buscar status do número');
+  }
+  return response.json();
+};
+
+/** health_status da WABA: banimento, erro de pagamento, review reprovado. */
+export const fetchWabaHealth = async (
+  wabaId: string,
+  accessToken: string
+): Promise<MetaWabaHealth> => {
+  const fields = 'id,name,status,account_review_status,health_status';
+  const response = await fetch(`${META_API_BASE}/${wabaId}?fields=${fields}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error?.message || 'Erro ao buscar saúde da WABA');
+  }
+  const json = await response.json();
+
+  // Junta os erros de todas as entidades (WABA, BUSINESS, APP) numa lista só.
+  const entities: Array<{ errors?: MetaHealthError[] }> = json.health_status?.entities ?? [];
+  const errors = entities.flatMap(e => e.errors ?? []);
+
+  return {
+    id: json.id,
+    name: json.name,
+    status: json.status,
+    account_review_status: json.account_review_status,
+    canSendMessage: json.health_status?.can_send_message,
+    errors,
+  };
+};
+
 // Fetch WABA name
 export const fetchWABAName = async (
   wabaId: string,

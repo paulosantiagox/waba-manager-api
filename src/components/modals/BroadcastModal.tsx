@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Send, Phone, Tag } from 'lucide-react';
+import { Loader2, Send, Phone, Tag, Ban } from 'lucide-react';
+import { numeroBloqueado, rotuloStatusNumero } from '@/hooks/useAccountHealth';
 
 interface BroadcastModalProps {
   broadcast: Broadcast | null;
@@ -166,14 +167,22 @@ const BroadcastModal = ({
                   whatsappNumbers.map((num) => (
                     <SelectItem key={num.id} value={num.id}>
                       <div className="flex items-center gap-2">
+                        {/* Bloqueio na Meta prevalece sobre a qualidade */}
                         <span className={
+                          numeroBloqueado(num.metaStatus) ? 'text-destructive' :
                           num.qualityRating === 'HIGH' ? 'text-success' :
                           num.qualityRating === 'MEDIUM' ? 'text-warning' : 'text-destructive'
                         }>
-                          {num.qualityRating === 'HIGH' ? '🟢' :
+                          {numeroBloqueado(num.metaStatus) ? '⛔' :
+                           num.qualityRating === 'HIGH' ? '🟢' :
                            num.qualityRating === 'MEDIUM' ? '🟡' : '🔴'}
                         </span>
                         {num.customName || num.verifiedName} - {num.displayPhoneNumber}
+                        {numeroBloqueado(num.metaStatus) && (
+                          <span className="text-xs font-semibold text-destructive">
+                            ({rotuloStatusNumero(num.metaStatus)})
+                          </span>
+                        )}
                       </div>
                     </SelectItem>
                   ))
@@ -185,6 +194,17 @@ const BroadcastModal = ({
               </SelectContent>
             </Select>
             {errors.phoneNumberId && <p className="text-xs text-destructive">{errors.phoneNumberId}</p>}
+            {(() => {
+              const escolhido = whatsappNumbers.find(n => n.id === phoneNumberId);
+              if (!escolhido || !numeroBloqueado(escolhido.metaStatus)) return null;
+              return (
+                <p className="text-xs text-destructive flex items-start gap-1 bg-destructive/10 border border-destructive/30 rounded p-2">
+                  <Ban className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                  Este número está {rotuloStatusNumero(escolhido.metaStatus)?.toLowerCase()} na Meta e
+                  não consegue enviar mensagens. O disparo provavelmente vai falhar.
+                </p>
+              );
+            })()}
           </div>
 
           {/* Action Type Select */}
