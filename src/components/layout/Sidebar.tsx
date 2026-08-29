@@ -16,7 +16,7 @@ import {
   Send,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { BrasiliaClockWidget, ManausClockWidget } from './BrasiliaClockWidget';
+import { BrasiliaClockWidget } from './BrasiliaClockWidget';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -134,9 +134,8 @@ const Sidebar = ({ collapsed, onToggle, isMobile = false }: SidebarProps) => {
         <div className="p-2 border-t border-sidebar-border">
           {(!collapsed || isMobile) ? (
             <>
-              {/* Relógios */}
+              {/* Relógio */}
               <BrasiliaClockWidget collapsed={false} />
-              <ManausClockWidget collapsed={false} />
               
               <div className="flex items-center gap-3 mb-3 px-2">
                 {user?.photo ? (
@@ -177,9 +176,8 @@ const Sidebar = ({ collapsed, onToggle, isMobile = false }: SidebarProps) => {
             </>
           ) : (
             <div className="flex flex-col items-center gap-2">
-              {/* Relógios compactos */}
+              {/* Relógio compacto */}
               <BrasiliaClockWidget collapsed={true} />
-              <ManausClockWidget collapsed={true} />
               
               <Tooltip>
                 <TooltipTrigger asChild>

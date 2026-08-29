@@ -787,37 +787,40 @@ export default function Templates() {
         {/* Sticky sidebar */}
         <aside className="w-64 flex-shrink-0 border-r bg-card/50 sticky top-0 h-screen flex flex-col">
           <div className="p-4 border-b">
-            <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center justify-between mb-2">
               <h1 className="font-bold text-base">Templates</h1>
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={handleRefreshCurrent}
-                  disabled={isRefreshing || !resolvedAccount}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg border text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-40"
-                  title="Atualizar WABA atual"
-                >
-                  {isRefreshing
-                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    : <RefreshCw className="w-3.5 h-3.5" />}
-                </button>
-                <button
-                  onClick={() => runRefreshAll()}
-                  disabled={isRefreshingAll}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg border text-muted-foreground hover:text-foreground hover:border-amber-400 hover:text-amber-600 transition-colors disabled:opacity-40"
-                  title="Atualizar TODOS os templates e detectar mudanças"
-                >
-                  {isRefreshingAll
-                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    : <Zap className="w-3.5 h-3.5" />}
-                </button>
-                <Button size="sm" className="h-8 px-2.5 gap-1.5 text-xs" onClick={() => setCreatorOpen(true)}>
-                  <Plus className="w-3.5 h-3.5" />
-                  Criar
-                </Button>
-              </div>
+              <Button size="sm" className="h-8 px-2.5 gap-1.5 text-xs" onClick={() => setCreatorOpen(true)}>
+                <Plus className="w-3.5 h-3.5" />
+                Criar
+              </Button>
+            </div>
+            {/* Ações com nome — os ícones sozinhos não diziam o que faziam */}
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={handleRefreshCurrent}
+                disabled={isRefreshing || !resolvedAccount}
+                className="flex-1 h-8 px-2 flex items-center justify-center gap-1.5 rounded-lg border text-[11px] font-medium text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-40"
+                title="Rebusca os templates apenas desta conta WABA na Meta"
+              >
+                {isRefreshing
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin flex-shrink-0" />
+                  : <RefreshCw className="w-3.5 h-3.5 flex-shrink-0" />}
+                Atualizar esta
+              </button>
+              <button
+                onClick={() => runRefreshAll()}
+                disabled={isRefreshingAll}
+                className="flex-1 h-8 px-2 flex items-center justify-center gap-1.5 rounded-lg border text-[11px] font-medium text-muted-foreground hover:text-amber-600 hover:border-amber-400 transition-colors disabled:opacity-40"
+                title="Rebusca os templates de TODAS as contas e registra as mudanças de status"
+              >
+                {isRefreshingAll
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin flex-shrink-0" />
+                  : <Zap className="w-3.5 h-3.5 flex-shrink-0" />}
+                Atualizar todas
+              </button>
             </div>
             {lastUpdated && (
-              <p className="text-[10px] text-muted-foreground">atualizado às {lastUpdated}</p>
+              <p className="text-[10px] text-muted-foreground mt-1.5">atualizado às {lastUpdated}</p>
             )}
           </div>
           <div className="flex-1 overflow-y-auto p-2">
