@@ -34,7 +34,7 @@ import {
   Play,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { WabaAccount } from '@/hooks/useWabaTemplates';
+import { WabaAccount, useWabaNames } from '@/hooks/useWabaTemplates';
 import { createWabaTemplate, CreateTemplatePayload, MetaTemplateComponent } from '@/services/metaApi';
 import { useSaveDeployment } from '@/hooks/useTemplateDeployments';
 import { toast } from 'sonner';
@@ -159,10 +159,12 @@ function WabaSelector({
   accounts,
   selected,
   onChange,
+  wabaNames = {},
 }: {
   accounts: WabaAccount[];
   selected: Set<string>;
   onChange: (s: Set<string>) => void;
+  wabaNames?: Record<string, string>;
 }) {
   const byProject = useMemo(() => {
     const map = new Map<string, { name: string; accounts: WabaAccount[] }>();
@@ -239,10 +241,23 @@ function WabaSelector({
                       className="mt-0.5"
                     />
                     <div className="min-w-0 flex-1">
+                      {/* Nome da WABA na Meta quando disponível */}
                       <p className="text-sm font-medium truncate">
-                        {acc.numberNames[0] ?? acc.wabaId}
+                        {wabaNames[acc.wabaId] || acc.numberNames[0] || acc.wabaId}
                       </p>
-                      <p className="text-xs text-muted-foreground truncate">{acc.wabaId}</p>
+                      {/* Todos os números desta WABA, para escolher a conta certa */}
+                      {acc.numberNames.length > 0 && (
+                        <ul className="mt-0.5 space-y-0.5">
+                          {acc.numberNames.map((nome, i) => (
+                            <li key={`${nome}-${i}`} className="text-xs text-muted-foreground truncate">
+                              • {nome}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <p className="text-xs text-muted-foreground/70 truncate mt-0.5">
+                        {acc.numberNames.length} número{acc.numberNames.length === 1 ? '' : 's'} · {acc.wabaId}
+                      </p>
                     </div>
                   </label>
                 ))}
@@ -334,6 +349,9 @@ type Step = 'form' | 'confirm' | 'deploying' | 'done';
 
 export default function TemplateCreatorDrawer({ open, onClose, accounts, initialValues }: Props) {
   const { mutateAsync: saveDeployment } = useSaveDeployment();
+  // Nome da WABA na Meta, para escolher a conta certa (mesma query do Templates,
+  // servida pelo cache do react-query).
+  const { data: wabaNames = {} } = useWabaNames(accounts);
 
   const { register, control, watch, handleSubmit, reset, formState: { errors } } = useForm<FormValues>({
     defaultValues: {
@@ -921,6 +939,7 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts, initial
                   accounts={accounts}
                   selected={selectedWabas}
                   onChange={setSelectedWabas}
+                  wabaNames={wabaNames}
                 />
               </section>
 
