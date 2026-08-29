@@ -144,9 +144,19 @@ const DashboardV2 = () => {
           </div>
           <div className="flex flex-col items-end gap-1">
             {rotuloBloqueio && (
-              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-destructive text-destructive-foreground">
+              <span className={cn(
+                'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold',
+                bloqueado
+                  ? 'bg-destructive text-destructive-foreground'
+                  : 'bg-warning/20 text-warning border border-warning/40'
+              )}>
                 <Ban className="w-2.5 h-2.5" />
                 {rotuloBloqueio.toUpperCase()}
+              </span>
+            )}
+            {!bloqueado && number.nameStatus === 'DECLINED' && (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-warning/20 text-warning border border-warning/40">
+                NOME REPROVADO
               </span>
             )}
             <QualityBadge rating={number.qualityRating} size="sm" />

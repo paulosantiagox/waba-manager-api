@@ -23,9 +23,12 @@ import { ptBR } from 'date-fns/locale';
 import { supabase as lovableSupabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { useVerificarSaude, useWabaHealth, numeroBloqueado, rotuloStatusNumero } from '@/hooks/useAccountHealth';
+import {
+  useVerificarSaude, useWabaHealth, numeroBloqueado, rotuloStatusNumero,
+  contaBloqueada, contaComAviso, numeroComAviso,
+} from '@/hooks/useAccountHealth';
 import { useWabaAccounts as useAccounts } from '@/hooks/useWabaTemplates';
-import { Ban } from 'lucide-react';
+import { Ban, AlertTriangle } from 'lucide-react';
 
 const MasterDashboard = () => {
   const { data: users = [] } = useUsers();
@@ -178,8 +181,19 @@ const UserDashboard = () => {
     [allNumbers]
   );
   const contasBloqueadas = useMemo(
-    () => Object.values(saudeWabas).filter(c => c.canSendMessage === 'BLOCKED'),
+    () => Object.values(saudeWabas).filter(contaBloqueada),
     [saudeWabas]
+  );
+  const contasComAviso = useMemo(
+    () => Object.values(saudeWabas).filter(contaComAviso),
+    [saudeWabas]
+  );
+  const numerosComAviso = useMemo(
+    () =>
+      allNumbers.filter(
+        n => n.isVisible && !numeroBloqueado(n.metaStatus) && numeroComAviso(n.metaStatus, n.nameStatus)
+      ),
+    [allNumbers]
   );
 
   const handleUpdateAll = async () => {
@@ -282,6 +296,44 @@ const UserDashboard = () => {
             Verifique em business.facebook.com/accountquality. Erro de pagamento se resolve
             atualizando o meio de pagamento da conta.
           </p>
+        </div>
+      )}
+
+      {/* Avisos: não bloqueiam o envio, mas pedem atenção */}
+      {(numerosComAviso.length > 0 || contasComAviso.length > 0) && (
+        <div className="mb-6 rounded-xl border border-warning/40 bg-warning/5 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle className="w-4 h-4 text-warning" />
+            <h3 className="font-semibold text-warning text-sm">Avisos da Meta</h3>
+          </div>
+
+          {numerosComAviso.length > 0 && (
+            <p className="text-sm text-foreground/80 mb-1">
+              <strong>{numerosComAviso.length} número(s) com pendência:</strong>{' '}
+              {numerosComAviso
+                .map(n => {
+                  const motivo = rotuloStatusNumero(n.metaStatus)
+                    ?? (n.nameStatus === 'DECLINED' ? 'nome reprovado' : 'nome em análise');
+                  return `${n.customName || n.verifiedName} (${motivo})`;
+                })
+                .join(', ')}
+            </p>
+          )}
+
+          {contasComAviso.map(c => (
+            <p key={c.wabaId} className="text-sm text-foreground/80">
+              <strong>{c.wabaName ?? c.wabaId}:</strong>{' '}
+              {[
+                c.canSendMessage === 'LIMITED' ? 'envio limitado' : null,
+                c.accountReviewStatus && c.accountReviewStatus !== 'APPROVED'
+                  ? `revisão ${c.accountReviewStatus.toLowerCase()}`
+                  : null,
+                ...c.warnings,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
+          ))}
         </div>
       )}
 

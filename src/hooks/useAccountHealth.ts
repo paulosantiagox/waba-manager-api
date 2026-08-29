@@ -23,8 +23,28 @@ export interface WabaSaude {
   accountReviewStatus: string | null;
   canSendMessage: string | null; // AVAILABLE | LIMITED | BLOCKED
   errors: MetaHealthError[];
+  warnings: string[];
   checkedAt: string;
 }
+
+/** Conta sem poder enviar (impeditivo). */
+export const contaBloqueada = (c: WabaSaude) => c.canSendMessage === 'BLOCKED';
+
+/**
+ * Conta com aviso: envio limitado, revisão pendente/reprovada ou qualquer
+ * additional_info da Meta. Não impede o envio, mas merece olhar.
+ */
+export const contaComAviso = (c: WabaSaude) =>
+  !contaBloqueada(c) &&
+  (c.canSendMessage === 'LIMITED' ||
+    c.warnings.length > 0 ||
+    (!!c.accountReviewStatus && c.accountReviewStatus !== 'APPROVED'));
+
+/** Número com aviso (em análise/limitado), sem estar bloqueado. */
+export const numeroComAviso = (metaStatus?: string | null, nameStatus?: string | null) =>
+  (!!metaStatus && ['RATE_LIMITED', 'PENDING', 'UNVERIFIED'].includes(metaStatus)) ||
+  nameStatus === 'DECLINED' ||
+  nameStatus === 'PENDING_REVIEW';
 
 /** true quando o número não pode operar (banido/restrito/sinalizado). */
 export const numeroBloqueado = (metaStatus?: string | null) =>
@@ -64,6 +84,7 @@ export function useWabaHealth() {
           accountReviewStatus: (row.account_review_status as string) ?? null,
           canSendMessage: (row.can_send_message as string) ?? null,
           errors: (row.errors as MetaHealthError[]) ?? [],
+          warnings: (row.warnings as string[]) ?? [],
           checkedAt: row.checked_at as string,
         };
       }
@@ -151,6 +172,7 @@ export function useVerificarSaude() {
               account_review_status: h.account_review_status ?? null,
               can_send_message: h.canSendMessage ?? null,
               errors: h.errors,
+              warnings: h.warnings,
               checked_at: agora,
             });
           } catch {

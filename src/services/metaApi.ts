@@ -265,8 +265,12 @@ export interface MetaWabaHealth {
   name?: string;
   status?: string;
   account_review_status?: string;
+  /** AVAILABLE = ok · LIMITED = aviso · BLOCKED = não envia */
   canSendMessage?: 'AVAILABLE' | 'LIMITED' | 'BLOCKED';
+  /** impeditivos (banimento, pagamento) */
   errors: MetaHealthError[];
+  /** avisos informativos que não bloqueiam (additional_info) */
+  warnings: string[];
 }
 
 /** Status real de um número (CONNECTED/BANNED/FLAGGED...). */
@@ -300,9 +304,11 @@ export const fetchWabaHealth = async (
   }
   const json = await response.json();
 
-  // Junta os erros de todas as entidades (WABA, BUSINESS, APP) numa lista só.
-  const entities: Array<{ errors?: MetaHealthError[] }> = json.health_status?.entities ?? [];
+  // Junta erros e avisos de todas as entidades (WABA, BUSINESS, APP).
+  const entities: Array<{ errors?: MetaHealthError[]; additional_info?: string[] }> =
+    json.health_status?.entities ?? [];
   const errors = entities.flatMap(e => e.errors ?? []);
+  const warnings = [...new Set(entities.flatMap(e => e.additional_info ?? []))];
 
   return {
     id: json.id,
@@ -311,6 +317,7 @@ export const fetchWabaHealth = async (
     account_review_status: json.account_review_status,
     canSendMessage: json.health_status?.can_send_message,
     errors,
+    warnings,
   };
 };
 
