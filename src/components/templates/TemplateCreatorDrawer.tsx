@@ -21,6 +21,7 @@ import {
   Plus,
   Trash2,
   ChevronDown,
+  Building2,
   ChevronRight,
   CheckCircle2,
   XCircle,
@@ -169,11 +170,21 @@ function WabaSelector({
   onChange: (s: Set<string>) => void;
   wabaNames?: Record<string, string>;
 }) {
+  // Projeto → BM → WABAs, para escolher a conta pela BM.
   const byProject = useMemo(() => {
-    const map = new Map<string, { name: string; accounts: WabaAccount[] }>();
+    const map = new Map<
+      string,
+      { name: string; accounts: WabaAccount[]; bms: Map<string, WabaAccount[]> }
+    >();
     for (const acc of accounts) {
-      if (!map.has(acc.projectId)) map.set(acc.projectId, { name: acc.projectName, accounts: [] });
-      map.get(acc.projectId)!.accounts.push(acc);
+      if (!map.has(acc.projectId)) {
+        map.set(acc.projectId, { name: acc.projectName, accounts: [], bms: new Map() });
+      }
+      const grupo = map.get(acc.projectId)!;
+      grupo.accounts.push(acc);
+      const bm = acc.bmName || 'Sem BM';
+      if (!grupo.bms.has(bm)) grupo.bms.set(bm, []);
+      grupo.bms.get(bm)!.push(acc);
     }
     return Array.from(map.entries());
   }, [accounts]);
@@ -230,10 +241,27 @@ function WabaSelector({
               </button>
             </div>
 
-            {/* WABA accounts */}
+            {/* WABAs agrupadas por BM */}
             {isOpen && (
               <div className="divide-y divide-border/50">
-                {group.accounts.map(acc => (
+                {Array.from(group.bms.entries()).map(([bmNome, contasDaBm]) => (
+                  <div key={bmNome}>
+                    {/* Cabeçalho da BM, com selecionar tudo da BM */}
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/5 border-y border-primary/10">
+                      <Checkbox
+                        checked={contasDaBm.every(a => selected.has(a.wabaId))}
+                        onCheckedChange={() =>
+                          toggleProject(projectId, contasDaBm.map(a => a.wabaId))
+                        }
+                      />
+                      <Building2 className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                      <span className="text-xs font-bold text-primary truncate">{bmNome}</span>
+                      <span className="ml-auto text-[10px] text-muted-foreground flex-shrink-0">
+                        {contasDaBm.filter(a => selected.has(a.wabaId)).length}/{contasDaBm.length}
+                      </span>
+                    </div>
+
+                {contasDaBm.map(acc => (
                   <label
                     key={acc.wabaId}
                     className="flex items-start gap-2 px-4 py-2 hover:bg-accent/50 cursor-pointer transition-colors"
@@ -263,6 +291,8 @@ function WabaSelector({
                       </p>
                     </div>
                   </label>
+                ))}
+                  </div>
                 ))}
               </div>
             )}

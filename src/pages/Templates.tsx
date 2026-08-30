@@ -27,6 +27,7 @@ import {
   ArrowRight,
   Zap,
   BookOpen,
+  Building2,
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
@@ -464,11 +465,21 @@ function AccountTree({
   onSelect: (account: WabaAccount) => void;
   wabaNames?: Record<string, string>;
 }) {
+  // Projeto → BM → WABAs. A BM agrupa as contas dentro do projeto.
   const byProject = useMemo(() => {
-    const map = new Map<string, { name: string; accounts: WabaAccount[] }>();
+    const map = new Map<
+      string,
+      { name: string; accounts: WabaAccount[]; bms: Map<string, WabaAccount[]> }
+    >();
     for (const acc of accounts) {
-      if (!map.has(acc.projectId)) map.set(acc.projectId, { name: acc.projectName, accounts: [] });
-      map.get(acc.projectId)!.accounts.push(acc);
+      if (!map.has(acc.projectId)) {
+        map.set(acc.projectId, { name: acc.projectName, accounts: [], bms: new Map() });
+      }
+      const grupo = map.get(acc.projectId)!;
+      grupo.accounts.push(acc);
+      const bm = acc.bmName || 'Sem BM';
+      if (!grupo.bms.has(bm)) grupo.bms.set(bm, []);
+      grupo.bms.get(bm)!.push(acc);
     }
     return Array.from(map.values());
   }, [accounts]);
@@ -502,8 +513,19 @@ function AccountTree({
           </button>
 
           {openProjects.has(group.accounts[0].projectId) && (
-            <div className="ml-4 space-y-0.5">
-              {group.accounts.map(acc => (
+            <div className="ml-2 space-y-2">
+              {Array.from(group.bms.entries()).map(([bmNome, contasDaBm]) => (
+                <div key={bmNome} className="space-y-0.5">
+                  {/* Cabeçalho da BM */}
+                  <div className="flex items-center gap-1.5 px-2 pt-1">
+                    <Building2 className="w-3 h-3 text-primary flex-shrink-0" />
+                    <span className="text-[11px] font-bold text-primary truncate">{bmNome}</span>
+                    <span className="text-[10px] text-muted-foreground flex-shrink-0">
+                      {contasDaBm.length}
+                    </span>
+                  </div>
+                  <div className="ml-2 space-y-0.5">
+              {contasDaBm.map(acc => (
                 <button
                   key={acc.wabaId}
                   onClick={() => onSelect(acc)}
@@ -533,6 +555,9 @@ function AccountTree({
                     </p>
                   </div>
                 </button>
+              ))}
+                  </div>
+                </div>
               ))}
             </div>
           )}

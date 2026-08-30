@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProjects } from '@/hooks/useProjects';
 import { useAllWhatsAppNumbers } from '@/hooks/useWhatsAppNumbers';
 import { useRecentStatusChanges } from '@/hooks/useRecentStatusChanges';
+import { useBusinessManagers } from '@/hooks/useBusinessManagers';
+import { WhatsAppNumber } from '@/types';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { 
   ArrowLeft, 
@@ -15,7 +17,8 @@ import {
   RefreshCw,
   Clock,
   ListFilter,
-  Ban
+  Ban,
+  Building2
 } from 'lucide-react';
 import { numeroBloqueado, rotuloStatusNumero } from '@/hooks/useAccountHealth';
 import { Button } from '@/components/ui/button';
@@ -84,6 +87,13 @@ const DashboardV2 = () => {
 
   const { data: recentChanges = [], refetch: refetchChanges } = useRecentStatusChanges(projectIds);
 
+  // BMs para nomear os subgrupos dentro de cada projeto.
+  const { data: businessManagers = [] } = useBusinessManagers();
+  const nomeBmPorId = useMemo(
+    () => Object.fromEntries(businessManagers.map(bm => [bm.id, bm.mainBmName])),
+    [businessManagers]
+  );
+
   const handleUpdateAll = async () => {
     setIsUpdating(true);
     try {
@@ -109,6 +119,17 @@ const DashboardV2 = () => {
     if (!date) return "0d";
     const days = differenceInDays(new Date(), new Date(date));
     return `${days}d`;
+  };
+
+  // Agrupa os números de um projeto pela BM (mantém a ordem já aplicada).
+  const agruparPorBm = (numeros: WhatsAppNumber[]): [string, WhatsAppNumber[]][] => {
+    const mapa = new Map<string, WhatsAppNumber[]>();
+    for (const n of numeros) {
+      const bm = nomeBmPorId[n.businessManagerId ?? ''] || 'Sem BM';
+      if (!mapa.has(bm)) mapa.set(bm, []);
+      mapa.get(bm)!.push(n);
+    }
+    return Array.from(mapa.entries());
   };
 
   const renderNumberCard = (number: any) => {
@@ -299,9 +320,21 @@ const DashboardV2 = () => {
                   </h2>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
-                  {projectNumbers.map(renderNumberCard)}
-                </div>
+                {/* Subcategoria por BM dentro do projeto */}
+                {agruparPorBm(projectNumbers).map(([bmNome, numerosDaBm]) => (
+                  <div key={bmNome} className="mb-4">
+                    <div className="flex items-center gap-1.5 mb-2 ml-1">
+                      <Building2 className="w-3.5 h-3.5 text-primary" />
+                      <span className="text-xs font-bold text-primary">{bmNome}</span>
+                      <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">
+                        {numerosDaBm.length}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
+                      {numerosDaBm.map(renderNumberCard)}
+                    </div>
+                  </div>
+                ))}
               </section>
             );
           })}
