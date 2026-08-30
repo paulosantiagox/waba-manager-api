@@ -167,6 +167,112 @@ export const fetchWabaTemplates = async (
   return data.data || [];
 };
 
+// ─── Upload de mídia para exemplo de cabeçalho ────────────────────────────────
+
+/**
+ * Cabeçalho IMAGE/VIDEO/DOCUMENT exige `example.header_handle` com um HANDLE da
+ * Resumable Upload API — URL pública NÃO é aceita (era o bug: mandávamos a URL
+ * e a Meta respondia "precisa de um exemplo/modelo").
+ *
+ * Fluxo: abre a sessão em /{app-id}/uploads e envia os bytes; a resposta traz o
+ * handle (`h`) que vai no template.
+ */
+export const uploadMediaHandle = async (
+  appId: string,
+  accessToken: string,
+  arquivo: Blob,
+  fileName: string
+): Promise<string> => {
+  const buffer = await arquivo.arrayBuffer();
+
+  // 1) abre a sessão
+  const params = new URLSearchParams({
+    file_name: fileName,
+    file_length: String(buffer.byteLength),
+    file_type: arquivo.type || 'application/octet-stream',
+  });
+  const sessionRes = await fetch(`${META_API_BASE}/${appId}/uploads?${params}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const sessionJson = await sessionRes.json();
+  if (!sessionRes.ok || !sessionJson.id) {
+    throw new Error(sessionJson.error?.message || 'Falha ao abrir sessão de upload na Meta');
+  }
+
+  // 2) envia os bytes (aqui o token vai como OAuth, não Bearer — exigência da Meta)
+  const uploadRes = await fetch(`${META_API_BASE}/${sessionJson.id}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `OAuth ${accessToken}`,
+      file_offset: '0',
+    },
+    body: buffer,
+  });
+  const uploadJson = await uploadRes.json();
+  if (!uploadRes.ok || !uploadJson.h) {
+    throw new Error(uploadJson.error?.message || 'Falha ao enviar a mídia de exemplo');
+  }
+
+  return uploadJson.h as string;
+};
+
+/** App ID da conta — necessário para abrir a sessão de upload. */
+export const fetchWabaAppId = async (
+  wabaId: string,
+  accessToken: string
+): Promise<string | null> => {
+  const res = await fetch(`${META_API_BASE}/${wabaId}?fields=health_status`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return null;
+  const json = await res.json();
+  const entities: Array<{ entity_type?: string; id?: string }> = json.health_status?.entities ?? [];
+  return entities.find(e => e.entity_type === 'APP')?.id ?? null;
+};
+
+/**
+ * Imagem de exemplo gerada localmente (sem rede, sem CORS). Serve só para a
+ * aprovação do template — a imagem real vai no disparo, pelos parâmetros.
+ */
+export const gerarImagemExemplo = (): Promise<Blob> => {
+  const canvas = document.createElement('canvas');
+  canvas.width = 800;
+  canvas.height = 418; // proporção recomendada pela Meta para header
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    const grad = ctx.createLinearGradient(0, 0, 800, 418);
+    grad.addColorStop(0, '#1e3a8a');
+    grad.addColorStop(1, '#2563eb');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 800, 418);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 44px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Imagem de exemplo', 400, 200);
+    ctx.font = '26px system-ui, sans-serif';
+    ctx.fillText('A imagem real é enviada no disparo', 400, 250);
+  }
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      b => (b ? resolve(b) : reject(new Error('Falha ao gerar imagem de exemplo'))),
+      'image/jpeg',
+      0.85
+    );
+  });
+};
+
+/** PDF mínimo válido, para cabeçalho DOCUMENT. */
+export const gerarPdfExemplo = (): Blob => {
+  const pdf = `%PDF-1.4
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj
+3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 842]>>endobj
+trailer<</Root 1 0 R>>
+%%EOF`;
+  return new Blob([pdf], { type: 'application/pdf' });
+};
+
 // ─── Template creation ────────────────────────────────────────────────────────
 
 export interface CreateTemplatePayload {

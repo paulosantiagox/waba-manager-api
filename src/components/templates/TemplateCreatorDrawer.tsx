@@ -35,7 +35,10 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { WabaAccount, useWabaNames } from '@/hooks/useWabaTemplates';
-import { createWabaTemplate, CreateTemplatePayload, MetaTemplateComponent } from '@/services/metaApi';
+import {
+  createWabaTemplate, CreateTemplatePayload, MetaTemplateComponent,
+  fetchWabaAppId, uploadMediaHandle, gerarImagemExemplo, gerarPdfExemplo,
+} from '@/services/metaApi';
 import { useSaveDeployment } from '@/hooks/useTemplateDeployments';
 import { toast } from 'sonner';
 
@@ -279,7 +282,7 @@ function versionName(baseName: string, version: number, total: number) {
 
 // ─── Build components payload ─────────────────────────────────────────────────
 
-function buildComponents(values: FormValues): MetaTemplateComponent[] {
+function buildComponents(values: FormValues, headerHandle?: string): MetaTemplateComponent[] {
   const components: MetaTemplateComponent[] = [];
 
   if (values.headerEnabled) {
@@ -289,11 +292,10 @@ function buildComponents(values: FormValues): MetaTemplateComponent[] {
       if (values.headerText.includes('{{1}}') && values.headerExample?.trim()) {
         header.example = { header_text: [values.headerExample.trim()] };
       }
-    } else {
-      // IMAGE, VIDEO, DOCUMENT — provide public URL as example handle
-      if (values.headerMediaUrl?.trim()) {
-        header.example = { header_handle: [values.headerMediaUrl.trim()] };
-      }
+    } else if (headerHandle) {
+      // IMAGE/VIDEO/DOCUMENT: a Meta exige o handle da Resumable Upload API.
+      // URL pública não é aceita — o handle é resolvido antes do deploy.
+      header.example = { header_handle: [headerHandle] };
     }
     components.push(header);
   }
@@ -352,6 +354,8 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts, initial
   // Nome da WABA na Meta, para escolher a conta certa (mesma query do Templates,
   // servida pelo cache do react-query).
   const { data: wabaNames = {} } = useWabaNames(accounts);
+  // Arquivo de exemplo do cabeçalho de mídia (opcional para imagem/PDF).
+  const [arquivoExemplo, setArquivoExemplo] = useState<File | null>(null);
 
   const { register, control, watch, handleSubmit, reset, formState: { errors } } = useForm<FormValues>({
     defaultValues: {
@@ -509,7 +513,42 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts, initial
     setDeployedCount(0);
     setStep('deploying');
 
-    const components = buildComponents(values);
+    const precisaMidia = values.headerEnabled && values.headerFormat !== 'TEXT';
+
+    /**
+     * Handle da mídia de exemplo, resolvido por WABA (o handle é válido só na
+     * conta que fez o upload). Cache para não reenviar a cada versão.
+     */
+    const handlePorWaba = new Map<string, string>();
+    const obterHandle = async (wabaId: string, token: string): Promise<string> => {
+      const emCache = handlePorWaba.get(wabaId);
+      if (emCache) return emCache;
+
+      const appId = await fetchWabaAppId(wabaId, token);
+      if (!appId) throw new Error('Não foi possível descobrir o App ID desta conta para enviar a mídia.');
+
+      // Usa o arquivo escolhido; sem arquivo, gera um exemplo local. A mídia real
+      // vai no disparo (pelos parâmetros), isto serve só para a aprovação.
+      let blob: Blob;
+      let nome: string;
+      if (arquivoExemplo) {
+        blob = arquivoExemplo;
+        nome = arquivoExemplo.name;
+      } else if (values.headerFormat === 'IMAGE') {
+        blob = await gerarImagemExemplo();
+        nome = 'exemplo.jpg';
+      } else if (values.headerFormat === 'DOCUMENT') {
+        blob = gerarPdfExemplo();
+        nome = 'exemplo.pdf';
+      } else {
+        throw new Error('Para cabeçalho de vídeo, escolha um arquivo de exemplo.');
+      }
+
+      const handle = await uploadMediaHandle(appId, token, blob, nome);
+      handlePorWaba.set(wabaId, handle);
+      return handle;
+    };
+
     let doneCount = 0;
     const items = deployItems;
 
@@ -533,7 +572,13 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts, initial
         prev.map(d => (d.key === item.key ? { ...d, status: 'creating' } : d))
       );
 
+      // Declarado fora do try porque o catch registra o payload no histórico.
+      let components: MetaTemplateComponent[] = buildComponents(values);
+
       try {
+        const handle = precisaMidia ? await obterHandle(item.wabaId, item.accessToken) : undefined;
+        components = buildComponents(values, handle);
+
         const result = await createWabaTemplate(item.wabaId, item.accessToken, {
           name: item.templateName,
           category: values.category,
@@ -751,29 +796,42 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts, initial
                       )}
                       {watchValues.headerFormat !== 'TEXT' && (
                         <div className="space-y-2">
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 rounded-lg px-3 py-2">
+                          <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/40 rounded-lg px-3 py-2">
                             {watchValues.headerFormat === 'IMAGE' && <span>🖼️</span>}
                             {watchValues.headerFormat === 'VIDEO' && <span>🎬</span>}
                             {watchValues.headerFormat === 'DOCUMENT' && <span>📄</span>}
                             <span>
-                              A Meta exige uma URL pública de exemplo para aprovar templates com mídia.
-                              Você pode usar qualquer URL acessível.
+                              A Meta exige um <strong>arquivo</strong> de exemplo (URL não é aceita) para
+                              aprovar templates com mídia. A mídia real continua indo no disparo, pelos parâmetros.
                             </span>
                           </div>
+
                           <Input
-                            {...register('headerMediaUrl')}
-                            placeholder={
+                            type="file"
+                            accept={
                               watchValues.headerFormat === 'IMAGE'
-                                ? 'https://exemplo.com/imagem.jpg'
+                                ? 'image/*'
                                 : watchValues.headerFormat === 'VIDEO'
-                                ? 'https://exemplo.com/video.mp4'
-                                : 'https://exemplo.com/documento.pdf'
+                                ? 'video/mp4'
+                                : 'application/pdf'
                             }
+                            onChange={e => setArquivoExemplo(e.target.files?.[0] ?? null)}
                             className="text-sm"
                           />
-                          <p className="text-xs text-muted-foreground">
-                            Esta URL é usada apenas como exemplo na criação. A mídia real é enviada no momento do disparo.
-                          </p>
+
+                          {watchValues.headerFormat === 'VIDEO' ? (
+                            <p className="text-xs text-warning">
+                              Para vídeo é obrigatório escolher um arquivo de exemplo.
+                            </p>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">
+                              {arquivoExemplo
+                                ? `Usando: ${arquivoExemplo.name}`
+                                : watchValues.headerFormat === 'IMAGE'
+                                ? 'Sem arquivo? Uma imagem de exemplo é gerada automaticamente.'
+                                : 'Sem arquivo? Um PDF de exemplo é gerado automaticamente.'}
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>
