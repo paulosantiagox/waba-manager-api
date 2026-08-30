@@ -322,15 +322,24 @@ const DashboardV2 = () => {
 
                 {/* Subcategoria por BM dentro do projeto */}
                 {agruparPorBm(projectNumbers).map(([bmNome, numerosDaBm]) => (
-                  <div key={bmNome} className="mb-4">
-                    <div className="flex items-center gap-1.5 mb-2 ml-1">
-                      <Building2 className="w-3.5 h-3.5 text-primary" />
-                      <span className="text-xs font-bold text-primary">{bmNome}</span>
-                      <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">
+                  <div
+                    key={bmNome}
+                    className="mb-4 rounded-xl border border-primary/15 bg-primary/[0.035] overflow-hidden"
+                  >
+                    {/* Faixa da BM */}
+                    <div className="flex items-center gap-2 px-3 py-2 bg-primary/10 border-b border-primary/15">
+                      <span className="w-1 h-5 rounded-full bg-primary flex-shrink-0" />
+                      <Building2 className="w-4 h-4 text-primary flex-shrink-0" />
+                      <span className="text-sm font-extrabold text-primary tracking-wide truncate">
+                        {bmNome}
+                      </span>
+                      <span className="text-[10px] font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full flex-shrink-0">
                         {numerosDaBm.length}
                       </span>
+                      <span className="flex-1 h-px bg-primary/20 ml-1" />
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
+
+                    <div className="p-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
                       {numerosDaBm.map(renderNumberCard)}
                     </div>
                   </div>

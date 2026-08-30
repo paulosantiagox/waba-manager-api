@@ -247,16 +247,17 @@ function WabaSelector({
                 {Array.from(group.bms.entries()).map(([bmNome, contasDaBm]) => (
                   <div key={bmNome}>
                     {/* Cabeçalho da BM, com selecionar tudo da BM */}
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/5 border-y border-primary/10">
+                    <div className="flex items-center gap-2 px-3 py-2 bg-primary/10 border-y border-primary/20">
                       <Checkbox
                         checked={contasDaBm.every(a => selected.has(a.wabaId))}
                         onCheckedChange={() =>
                           toggleProject(projectId, contasDaBm.map(a => a.wabaId))
                         }
                       />
+                      <span className="w-1 h-4 rounded-full bg-primary flex-shrink-0" />
                       <Building2 className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-                      <span className="text-xs font-bold text-primary truncate">{bmNome}</span>
-                      <span className="ml-auto text-[10px] text-muted-foreground flex-shrink-0">
+                      <span className="text-sm font-extrabold text-primary truncate">{bmNome}</span>
+                      <span className="ml-auto text-[10px] font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full flex-shrink-0">
                         {contasDaBm.filter(a => selected.has(a.wabaId)).length}/{contasDaBm.length}
                       </span>
                     </div>

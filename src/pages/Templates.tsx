@@ -515,16 +515,17 @@ function AccountTree({
           {openProjects.has(group.accounts[0].projectId) && (
             <div className="ml-2 space-y-2">
               {Array.from(group.bms.entries()).map(([bmNome, contasDaBm]) => (
-                <div key={bmNome} className="space-y-0.5">
-                  {/* Cabeçalho da BM */}
-                  <div className="flex items-center gap-1.5 px-2 pt-1">
+                <div key={bmNome} className="rounded-lg border border-primary/15 bg-primary/[0.035] overflow-hidden">
+                  {/* Faixa da BM */}
+                  <div className="flex items-center gap-1.5 px-2 py-1.5 bg-primary/10 border-b border-primary/15">
+                    <span className="w-0.5 h-3.5 rounded-full bg-primary flex-shrink-0" />
                     <Building2 className="w-3 h-3 text-primary flex-shrink-0" />
-                    <span className="text-[11px] font-bold text-primary truncate">{bmNome}</span>
-                    <span className="text-[10px] text-muted-foreground flex-shrink-0">
+                    <span className="text-[11px] font-extrabold text-primary truncate">{bmNome}</span>
+                    <span className="text-[9px] font-bold bg-primary text-primary-foreground px-1.5 rounded-full flex-shrink-0 ml-auto">
                       {contasDaBm.length}
                     </span>
                   </div>
-                  <div className="ml-2 space-y-0.5">
+                  <div className="p-1 space-y-0.5">
               {contasDaBm.map(acc => (
                 <button
                   key={acc.wabaId}
