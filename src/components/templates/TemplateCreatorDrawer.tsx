@@ -38,7 +38,7 @@ import { cn } from '@/lib/utils';
 import { WabaAccount, useWabaNames } from '@/hooks/useWabaTemplates';
 import {
   createWabaTemplate, CreateTemplatePayload, MetaTemplateComponent,
-  fetchWabaAppId, uploadMediaHandle, gerarImagemExemplo, gerarPdfExemplo,
+  uploadMediaHandle, gerarImagemExemplo, gerarPdfExemplo,
 } from '@/services/metaApi';
 import { useSaveDeployment } from '@/hooks/useTemplateDeployments';
 import { toast } from 'sonner';
@@ -551,12 +551,9 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts, initial
      * conta que fez o upload). Cache para não reenviar a cada versão.
      */
     const handlePorWaba = new Map<string, string>();
-    const obterHandle = async (wabaId: string, token: string): Promise<string> => {
+    const obterHandle = async (wabaId: string): Promise<string> => {
       const emCache = handlePorWaba.get(wabaId);
       if (emCache) return emCache;
-
-      const appId = await fetchWabaAppId(wabaId, token);
-      if (!appId) throw new Error('Não foi possível descobrir o App ID desta conta para enviar a mídia.');
 
       // Usa o arquivo escolhido; sem arquivo, gera um exemplo local. A mídia real
       // vai no disparo (pelos parâmetros), isto serve só para a aprovação.
@@ -575,7 +572,7 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts, initial
         throw new Error('Para cabeçalho de vídeo, escolha um arquivo de exemplo.');
       }
 
-      const handle = await uploadMediaHandle(appId, token, blob, nome);
+      const handle = await uploadMediaHandle(wabaId, blob, nome);
       handlePorWaba.set(wabaId, handle);
       return handle;
     };
@@ -607,7 +604,7 @@ export default function TemplateCreatorDrawer({ open, onClose, accounts, initial
       let components: MetaTemplateComponent[] = buildComponents(values);
 
       try {
-        const handle = precisaMidia ? await obterHandle(item.wabaId, item.accessToken) : undefined;
+        const handle = precisaMidia ? await obterHandle(item.wabaId) : undefined;
         components = buildComponents(values, handle);
 
         const result = await createWabaTemplate(item.wabaId, item.accessToken, {

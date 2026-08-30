@@ -1,4 +1,5 @@
 // Meta Graph API Service
+import { supabase } from '@/integrations/supabase/client';
 
 export interface MetaPhoneNumber {
   id: string;
@@ -178,57 +179,34 @@ export const fetchWabaTemplates = async (
  * handle (`h`) que vai no template.
  */
 export const uploadMediaHandle = async (
-  appId: string,
-  accessToken: string,
+  wabaId: string,
   arquivo: Blob,
   fileName: string
 ): Promise<string> => {
+  // O endpoint `upload:` da Meta não responde ao preflight de CORS, então o
+  // navegador não consegue enviar os bytes. A edge function faz isso no
+  // servidor — e busca o token da BM no banco, sem passar pelo cliente.
   const buffer = await arquivo.arrayBuffer();
-
-  // 1) abre a sessão
-  const params = new URLSearchParams({
-    file_name: fileName,
-    file_length: String(buffer.byteLength),
-    file_type: arquivo.type || 'application/octet-stream',
-  });
-  const sessionRes = await fetch(`${META_API_BASE}/${appId}/uploads?${params}`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  const sessionJson = await sessionRes.json();
-  if (!sessionRes.ok || !sessionJson.id) {
-    throw new Error(sessionJson.error?.message || 'Falha ao abrir sessão de upload na Meta');
+  let binario = '';
+  const chunk = 0x8000; // fatiado para não estourar a pilha em arquivos grandes
+  const view = new Uint8Array(buffer);
+  for (let i = 0; i < view.length; i += chunk) {
+    binario += String.fromCharCode(...view.subarray(i, i + chunk));
   }
 
-  // 2) envia os bytes (aqui o token vai como OAuth, não Bearer — exigência da Meta)
-  const uploadRes = await fetch(`${META_API_BASE}/${sessionJson.id}`, {
-    method: 'POST',
-    headers: {
-      Authorization: `OAuth ${accessToken}`,
-      file_offset: '0',
+  const { data, error } = await supabase.functions.invoke('meta-upload-handle', {
+    body: {
+      wabaId,
+      fileBase64: btoa(binario),
+      fileName,
+      fileType: arquivo.type || 'application/octet-stream',
     },
-    body: buffer,
   });
-  const uploadJson = await uploadRes.json();
-  if (!uploadRes.ok || !uploadJson.h) {
-    throw new Error(uploadJson.error?.message || 'Falha ao enviar a mídia de exemplo');
-  }
 
-  return uploadJson.h as string;
-};
+  if (error) throw new Error(error.message || 'Falha ao enviar a mídia de exemplo');
+  if (!data?.handle) throw new Error(data?.error || 'A Meta não devolveu o handle da mídia');
 
-/** App ID da conta — necessário para abrir a sessão de upload. */
-export const fetchWabaAppId = async (
-  wabaId: string,
-  accessToken: string
-): Promise<string | null> => {
-  const res = await fetch(`${META_API_BASE}/${wabaId}?fields=health_status`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  if (!res.ok) return null;
-  const json = await res.json();
-  const entities: Array<{ entity_type?: string; id?: string }> = json.health_status?.entities ?? [];
-  return entities.find(e => e.entity_type === 'APP')?.id ?? null;
+  return data.handle as string;
 };
 
 /**
