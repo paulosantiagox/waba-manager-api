@@ -55,7 +55,9 @@ export function useBusinessManagers(projectId?: string) {
         createdAt: bm.created_at,
       }));
     },
-    enabled: projectId !== undefined,
+    // Sem projectId a intenção é buscar TODAS as BMs (usado para agrupar por BM).
+    // Antes ficava desabilitado nesse caso e o resultado vinha vazio.
+    enabled: true,
   });
 }
 
