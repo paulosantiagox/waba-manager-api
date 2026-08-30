@@ -175,11 +175,6 @@ const DashboardV2 = () => {
                 {rotuloBloqueio.toUpperCase()}
               </span>
             )}
-            {!bloqueado && number.nameStatus === 'DECLINED' && (
-              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-warning/20 text-warning border border-warning/40">
-                NOME REPROVADO
-              </span>
-            )}
             <QualityBadge rating={number.qualityRating} size="sm" />
           </div>
         </div>
@@ -194,6 +189,11 @@ const DashboardV2 = () => {
             {number.lastChecked ? format(new Date(number.lastChecked), "dd/MM HH:mm") : '--/-- --:--'}
           </span>
         </div>
+
+        {/* Nota discreta: não compete com o status de qualidade */}
+        {!bloqueado && number.nameStatus === 'DECLINED' && (
+          <p className="text-[8px] text-muted-foreground/70 mb-1">nome comercial reprovado</p>
+        )}
 
         <div className="pt-2 border-t border-border/50 flex items-center justify-between">
           <div className="flex flex-wrap gap-x-2 text-[8px] text-muted-foreground uppercase font-medium">
