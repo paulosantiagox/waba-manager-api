@@ -91,11 +91,13 @@ const CATEGORY_COLOR: Record<string, string> = {
 
 // ─── Template Card ────────────────────────────────────────────────────────────
 
-function TemplateCard({ template, broadcastStats, snapshotStatus, snapshotCategory }: {
+function TemplateCard({ template, broadcastStats, snapshotStatus, snapshotCategory, requestedCategory }: {
   template: MetaTemplate;
   broadcastStats?: TemplateBroadcastStats;
   snapshotStatus?: string;
   snapshotCategory?: string;
+  /** categoria pedida na criação — se a Meta reclassificou, o custo muda */
+  requestedCategory?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const status = STATUS_CONFIG[template.status] ?? STATUS_CONFIG.DISABLED;
@@ -109,6 +111,11 @@ function TemplateCard({ template, broadcastStats, snapshotStatus, snapshotCatego
 
   const statusChanged = snapshotStatus && snapshotStatus !== template.status;
   const categoryChanged = snapshotCategory && snapshotCategory !== template.category;
+
+  // A Meta pode reclassificar o template depois da análise. O que vale para o
+  // custo é SEMPRE a categoria atual (template.category, vinda da Meta agora).
+  const reclassificado = !!requestedCategory && requestedCategory !== template.category;
+  const ficouMaisCaro = reclassificado && template.category === 'MARKETING';
 
   return (
     <div className={cn(
@@ -152,9 +159,26 @@ function TemplateCard({ template, broadcastStats, snapshotStatus, snapshotCatego
               {status.icon}
               {status.label}
             </span>
-            <span className={cn('text-xs font-medium px-2 py-0.5 rounded-full border', CATEGORY_COLOR[template.category] ?? 'text-gray-600 bg-gray-50 border-gray-200')}>
+            {/* Categoria ATUAL na Meta — é ela que define o custo do envio */}
+            <span className={cn(
+              'text-xs font-medium px-2 py-0.5 rounded-full border',
+              ficouMaisCaro
+                ? 'bg-destructive text-destructive-foreground border-destructive font-bold'
+                : CATEGORY_COLOR[template.category] ?? 'text-gray-600 bg-gray-50 border-gray-200'
+            )}>
               {CATEGORY_LABEL[template.category] ?? template.category}
             </span>
+            {reclassificado && (
+              <span className={cn(
+                'inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border',
+                ficouMaisCaro
+                  ? 'bg-destructive/10 text-destructive border-destructive/40'
+                  : 'bg-amber-100 text-amber-700 border-amber-200'
+              )}>
+                <AlertTriangle className="w-3 h-3" />
+                pedido como {CATEGORY_LABEL[requestedCategory] ?? requestedCategory}
+              </span>
+            )}
             <span className="text-xs text-muted-foreground px-1.5 py-0.5 rounded-full bg-muted/60">
               {template.language}
             </span>
@@ -270,6 +294,19 @@ function TemplatesPanel({ account, wabaName }: { account: WabaAccount; wabaName?
   );
   const { data: broadcastStatsMap } = useTemplateBroadcastStats();
   const { data: snapshotsMap } = useTemplateSnapshots(account.wabaId);
+
+  // Categoria pedida na criação, por template desta WABA. Serve para avisar
+  // quando a Meta reclassificou (UTILITY → MARKETING encarece o disparo).
+  const { data: deployments = [] } = useTemplateDeployments();
+  const categoriaPedidaPorTemplate = useMemo(() => {
+    const mapa = new Map<string, string>();
+    for (const d of deployments) {
+      if (d.wabaId === account.wabaId && d.requestedCategory) {
+        mapa.set(d.templateName, d.requestedCategory);
+      }
+    }
+    return mapa;
+  }, [deployments, account.wabaId]);
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ['waba-templates', account.wabaId] });
@@ -443,6 +480,7 @@ function TemplatesPanel({ account, wabaName }: { account: WabaAccount; wabaName?
                 broadcastStats={broadcastStatsMap?.get(template.name)}
                 snapshotStatus={snapshotsMap?.get(template.name)?.status}
                 snapshotCategory={snapshotsMap?.get(template.name)?.category}
+                requestedCategory={categoriaPedidaPorTemplate.get(template.name)}
               />
             ))}
           </div>
@@ -598,7 +636,13 @@ function DeploymentHistory({ accounts }: { accounts: WabaAccount[] }) {
     if (!token) return;
     setRefreshingId(d.id);
     refreshStatus(
-      { deploymentId: d.id, wabaId: d.wabaId, accessToken: token, templateName: d.templateName },
+      {
+        deploymentId: d.id,
+        wabaId: d.wabaId,
+        accessToken: token,
+        templateName: d.templateName,
+        requestedCategory: d.requestedCategory,
+      },
       { onSettled: () => setRefreshingId(null) }
     );
   };

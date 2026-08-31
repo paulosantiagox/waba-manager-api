@@ -146,11 +146,13 @@ export function useRefreshDeploymentStatus() {
       wabaId,
       accessToken,
       templateName,
+      requestedCategory,
     }: {
       deploymentId: string;
       wabaId: string;
       accessToken: string;
       templateName: string;
+      requestedCategory?: string;
     }) => {
       const templates = await fetchWabaTemplates(wabaId, accessToken);
       const found = templates.find(t => t.name === templateName);
@@ -159,6 +161,12 @@ export function useRefreshDeploymentStatus() {
       if (found) {
         update.status = found.status;
         update.actual_category = found.category;
+        // Recalcula a flag: antes só a categoria era atualizada, então um
+        // template reclassificado (UTILITY → MARKETING) continuava com
+        // category_changed = false e não era sinalizado.
+        if (requestedCategory) {
+          update.category_changed = found.category !== requestedCategory;
+        }
       }
 
       const { error } = await supabase
