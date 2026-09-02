@@ -1,0 +1,20 @@
+# Mantém fora da imagem o que o build não usa. Sem isto o Docker copia
+# node_modules e .git inteiros para o daemon antes de começar — no
+# sistema-adm-eja isso eram 175 MB e 100 s jogados fora a cada deploy.
+node_modules
+.git
+.github
+.gitignore
+.DS_Store
+*.log
+npm-debug.log*
+coverage
+.vscode
+.idea
+.env
+.env.*
+
+# dist/ é gerado pelo próprio build dentro da imagem: mandar o local só
+# atrasa e ainda pode sobrescrever com uma versão velha.
+dist
+build
