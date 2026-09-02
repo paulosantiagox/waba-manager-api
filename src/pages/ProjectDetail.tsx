@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { Fragment, useState, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import EditNumberModal from '@/components/modals/EditNumberModal';
@@ -340,6 +340,37 @@ const ProjectDetail = () => {
     clearNotifications.mutate(numberId);
   };
 
+  /**
+   * Quebra a lista em blocos por BM, com uma linha de cabeçalho antes de cada
+   * bloco (mesma divisão usada no Monitoramento e nos Templates).
+   */
+  const renderLinhasPorBm = (lista: WhatsAppNumber[], isInactive = false) => {
+    const grupos = new Map<string, WhatsAppNumber[]>();
+    for (const n of lista) {
+      const nomeBm = projectBMs.find(b => b.id === n.businessManagerId)?.mainBmName || 'Sem BM';
+      if (!grupos.has(nomeBm)) grupos.set(nomeBm, []);
+      grupos.get(nomeBm)!.push(n);
+    }
+
+    return Array.from(grupos.entries()).map(([nomeBm, numerosDaBm]) => (
+      <Fragment key={nomeBm}>
+        <TableRow className="hover:bg-transparent">
+          <TableCell colSpan={8} className="bg-primary/10 border-y border-primary/20 py-2">
+            <div className="flex items-center gap-2">
+              <span className="w-1 h-4 rounded-full bg-primary flex-shrink-0" />
+              <Building2 className="w-4 h-4 text-primary flex-shrink-0" />
+              <span className="text-sm font-extrabold text-primary">{nomeBm}</span>
+              <span className="text-[10px] font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">
+                {numerosDaBm.length}
+              </span>
+            </div>
+          </TableCell>
+        </TableRow>
+        {numerosDaBm.map(n => renderNumberRow(n, isInactive))}
+      </Fragment>
+    ));
+  };
+
   const renderNumberRow = (number: WhatsAppNumber, isInactive = false) => {
     const bm = projectBMs.find(b => b.id === number.businessManagerId);
     const numberNotifications = notificationsByNumber.get(number.id) || [];
@@ -624,7 +655,7 @@ const ProjectDetail = () => {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader><TableRow><TableHead>Número</TableHead><TableHead>Qualidade</TableHead><TableHead>Limite</TableHead><TableHead>BM</TableHead><TableHead>Observação</TableHead><TableHead>Última Verificação</TableHead><TableHead>Ativo</TableHead><TableHead>Ações</TableHead></TableRow></TableHeader>
-              <TableBody>{activeNumbers.map((number) => renderNumberRow(number))}</TableBody>
+              <TableBody>{renderLinhasPorBm(activeNumbers)}</TableBody>
             </Table>
           </div>
         </Card>
@@ -646,7 +677,7 @@ const ProjectDetail = () => {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader><TableRow><TableHead>Número</TableHead><TableHead>Qualidade</TableHead><TableHead>Limite</TableHead><TableHead>BM</TableHead><TableHead>Observação</TableHead><TableHead>Última Verificação</TableHead><TableHead>Ativo</TableHead><TableHead>Ações</TableHead></TableRow></TableHeader>
-                <TableBody>{inactiveNumbers.map((number) => renderNumberRow(number, true))}</TableBody>
+                <TableBody>{renderLinhasPorBm(inactiveNumbers, true)}</TableBody>
               </Table>
             </div>
           </Card>
