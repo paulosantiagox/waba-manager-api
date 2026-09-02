@@ -1,6 +1,8 @@
 # Mantém fora da imagem o que o build não usa. Sem isto o Docker copia
 # node_modules e .git inteiros para o daemon antes de começar — no
 # sistema-adm-eja isso eram 175 MB e 100 s jogados fora a cada deploy.
+# .env NAO entra aqui de proposito: Vite e Next leem as variaveis em BUILD
+# time. Excluir quebrou o build do hub-educa e arriscava bundle sem config.
 node_modules
 .git
 .github
@@ -11,8 +13,6 @@ npm-debug.log*
 coverage
 .vscode
 .idea
-.env
-.env.*
 
 # dist/ é gerado pelo próprio build dentro da imagem: mandar o local só
 # atrasa e ainda pode sobrescrever com uma versão velha.
