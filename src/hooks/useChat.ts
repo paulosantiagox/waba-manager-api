@@ -132,7 +132,7 @@ export function useConversas(phoneNumberIds: string[]) {
         ultimaEntrada: (r.ultima_entrada as string) ?? null,
       }));
     },
-    enabled: !!phoneNumberId,
+    enabled: phoneNumberIds.length > 0,
   });
 }
 
