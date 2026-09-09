@@ -168,6 +168,9 @@ const DashboardV2 = () => {
       key={number.id}
       className={cn(
         "overflow-hidden border-none shadow-sm hover:shadow-md transition-shadow group cursor-pointer",
+        // Largura fixa: os blocos de WABA se ajustam ao conteudo e se
+        // empacotam lado a lado em vez de ocupar uma linha inteira cada um.
+        "w-full sm:w-[250px] sm:shrink-0",
         bloqueado && "ring-2 ring-destructive/60 bg-destructive/5"
       )}
       onClick={() => setSelectedNumberId(number.id)}
@@ -368,28 +371,29 @@ const DashboardV2 = () => {
                       <span className="flex-1 h-px bg-primary/20 ml-1" />
                     </div>
 
-                    <div className="p-3 space-y-2.5">
+                    {/* Cada WABA ocupa so a largura dos seus cards, para varias
+                        WABAs caberem na mesma linha. */}
+                    <div className="p-3 flex flex-wrap items-start gap-2.5">
                       {wabas.map(({ wabaId, wabaNome, numerosDaWaba }) => (
                         <div
                           key={wabaId}
-                          className="rounded-lg border border-border/60 bg-background/70 p-2.5"
+                          className="w-full sm:w-auto sm:max-w-full rounded-lg border border-border/60 bg-background/70 p-2.5"
                         >
                           {/* Faixa da WABA — mais discreta que a da BM */}
-                          <div className="flex items-center gap-2 mb-2">
+                          <div className="flex items-center gap-1.5 mb-2 max-w-full">
                             <MessageSquare className="w-3.5 h-3.5 text-primary/60 flex-shrink-0" />
-                            <span className="text-xs font-bold truncate">
+                            <span className="text-xs font-bold truncate min-w-0">
                               {wabaNome || 'WABA sem nome'}
-                            </span>
-                            <span className="font-mono text-[9px] text-muted-foreground flex-shrink-0">
-                              {wabaId}
                             </span>
                             <span className="text-[9px] font-bold bg-primary/15 text-primary px-1.5 py-0.5 rounded-full flex-shrink-0">
                               {numerosDaWaba.length}
                             </span>
-                            <span className="flex-1 h-px bg-border" />
+                            <span className="font-mono text-[9px] text-muted-foreground/70 ml-auto pl-2 flex-shrink-0">
+                              {wabaId}
+                            </span>
                           </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
+                          <div className="flex flex-wrap gap-2.5">
                             {numerosDaWaba.map(renderNumberCard)}
                           </div>
                         </div>
