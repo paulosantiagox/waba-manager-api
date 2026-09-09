@@ -6,6 +6,8 @@ import {
   useMensagens,
   useEnviarMensagem,
   useChatRealtime,
+  useAgora,
+  formatarEspera,
   explicarErroDeEnvio,
   JANELA_MS,
   NumeroDoChat,
@@ -51,7 +53,44 @@ const formatarTelefone = (waId: string) => {
   return `+${d}`;
 };
 
-const horaCurta = (iso: string) => format(new Date(iso), 'HH:mm');
+const horaExata = (iso: string) => format(new Date(iso), 'HH:mm:ss');
+
+/**
+ * Avatar com iniciais. A Meta não entrega a foto de perfil do cliente por
+ * nenhuma rota da Cloud API, então a identidade visual vem do nome + uma cor
+ * fixa derivada do número — sempre a mesma para o mesmo contato.
+ */
+const AVATAR_CORES = [
+  'bg-emerald-600', 'bg-violet-600', 'bg-amber-600', 'bg-sky-600',
+  'bg-rose-600', 'bg-teal-600', 'bg-indigo-600', 'bg-orange-600',
+];
+
+const iniciaisDe = (nome: string | null, waId: string): string => {
+  if (!nome?.trim()) return waId.slice(-2);
+  const partes = nome.trim().split(/\s+/);
+  return partes.length === 1
+    ? partes[0].slice(0, 2).toUpperCase()
+    : (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+};
+
+const corDoAvatar = (waId: string) => {
+  let soma = 0;
+  for (let i = 0; i < waId.length; i++) soma += waId.charCodeAt(i);
+  return AVATAR_CORES[soma % AVATAR_CORES.length];
+};
+
+const Avatar = ({ nome, waId, tamanho = 'md' }: { nome: string | null; waId: string; tamanho?: 'sm' | 'md' }) => (
+  <span
+    className={cn(
+      'rounded-full flex items-center justify-center text-white font-bold shrink-0',
+      corDoAvatar(waId),
+      tamanho === 'sm' ? 'w-8 h-8 text-[10px]' : 'w-10 h-10 text-xs',
+    )}
+    aria-hidden="true"
+  >
+    {iniciaisDe(nome, waId)}
+  </span>
+);
 
 const diaLegivel = (iso: string) => {
   const d = new Date(iso);
@@ -131,7 +170,7 @@ const Bolha = ({ m }: { m: Mensagem }) => {
           'flex items-center gap-1 justify-end mt-1 text-[10px]',
           meu ? 'text-primary-foreground/70' : 'text-muted-foreground',
         )}>
-          <span>{horaCurta(m.criadoEm)}</span>
+          <span className="tabular-nums">{horaExata(m.criadoEm)}</span>
           {meu && <IconeStatus status={m.status} erro={m.erro} />}
         </div>
 
@@ -190,6 +229,7 @@ const Chat = () => {
     useMensagens(sel?.phoneNumberId ?? null, sel?.waId ?? null);
   const enviar = useEnviarMensagem();
   useChatRealtime();
+  const agora = useAgora();
 
   // Desmarcou o número da conversa aberta? Fecha a conversa.
   useEffect(() => {
@@ -367,25 +407,40 @@ const Chat = () => {
                   const aberta = !!restanteDaJanela(c.ultimaEntrada);
                   const cor = corPorNumero.get(c.phoneNumberId);
                   const origem = numeroPorId.get(c.phoneNumberId);
+                  // Pendente enquanto não respondermos — abrir não resolve.
+                  const pendente = !!c.aguardandoDesde;
                   return (
                     <button
                       key={`${c.phoneNumberId}:${c.contatoWaId}`}
                       onClick={() => setSel({ phoneNumberId: c.phoneNumberId, waId: c.contatoWaId })}
                       className={cn(
-                        'w-full text-left px-3 py-2.5 border-b border-border/50 transition-colors flex gap-2',
-                        ativa ? 'bg-primary/10' : 'hover:bg-muted/50',
+                        'w-full text-left px-3 py-2.5 border-b border-border/50 transition-colors flex gap-2.5',
+                        ativa
+                          ? 'bg-primary/10'
+                          : pendente
+                            ? 'bg-amber-50/70 dark:bg-amber-950/25 hover:bg-amber-100/70 dark:hover:bg-amber-950/40'
+                            : 'hover:bg-muted/50',
                       )}
                     >
                       {/* Faixa de cor: identifica o número de destino */}
                       <span className={cn('w-1 rounded-full shrink-0 self-stretch', cor?.ponto ?? 'bg-muted')} />
 
+                      <span className="relative shrink-0">
+                        <Avatar nome={c.contatoNome} waId={c.contatoWaId} />
+                        {pendente && (
+                          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-amber-500 text-white text-[9px] font-bold flex items-center justify-center border-2 border-card">
+                            {c.naoRespondidas > 9 ? '9+' : c.naoRespondidas}
+                          </span>
+                        )}
+                      </span>
+
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center justify-between gap-2">
-                          <span className="text-xs font-bold truncate">
+                          <span className={cn('text-xs truncate', pendente ? 'font-extrabold' : 'font-bold')}>
                             {c.contatoNome || formatarTelefone(c.contatoWaId)}
                           </span>
-                          <span className="text-[9px] text-muted-foreground shrink-0">
-                            {horaCurta(c.ultimaEm)}
+                          <span className="text-[9px] text-muted-foreground shrink-0 tabular-nums">
+                            {horaExata(c.ultimaEm)}
                           </span>
                         </span>
 
@@ -393,18 +448,26 @@ const Chat = () => {
                           {c.ultimaDirecao === 'out' && (
                             <span className="text-[9px] text-muted-foreground shrink-0">Você:</span>
                           )}
-                          <span className="text-[11px] text-muted-foreground truncate">
+                          <span className={cn(
+                            'text-[11px] truncate',
+                            pendente ? 'text-foreground font-medium' : 'text-muted-foreground',
+                          )}>
                             {resumoConversa(c)}
                           </span>
                         </span>
 
-                        <span className="flex items-center gap-1.5 mt-1">
+                        <span className="flex items-center gap-1.5 mt-1 flex-wrap">
                           <span className={cn('text-[9px] font-bold truncate', cor?.texto)}>
                             {origem?.nome ?? c.phoneNumberId}
                           </span>
-                          {aberta && (
+                          {pendente && (
+                            <span className="text-[9px] font-bold text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-950 px-1.5 rounded-full shrink-0 tabular-nums">
+                              esperando {formatarEspera(c.aguardandoDesde!, agora)}
+                            </span>
+                          )}
+                          {!pendente && aberta && (
                             <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-1.5 rounded-full shrink-0">
-                              aberta
+                              respondida
                             </span>
                           )}
                         </span>
@@ -428,17 +491,28 @@ const Chat = () => {
             ) : (
               <>
                 <header className="px-4 py-2.5 border-b border-border bg-card flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold truncate">
-                      {conversaAtual?.contatoNome || formatarTelefone(sel.waId)}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground flex items-center gap-1.5">
-                      {formatarTelefone(sel.waId)}
-                      <span className="text-muted-foreground/40">·</span>
-                      <span className={cn('font-bold', corPorNumero.get(sel.phoneNumberId)?.texto)}>
-                        por {numeroDaConversa?.nome ?? sel.phoneNumberId}
-                      </span>
-                    </p>
+                  <div className="min-w-0 flex items-center gap-2.5">
+                    <Avatar nome={conversaAtual?.contatoNome ?? null} waId={sel.waId} />
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold truncate">
+                        {conversaAtual?.contatoNome || formatarTelefone(sel.waId)}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground flex items-center gap-1.5 flex-wrap">
+                        {formatarTelefone(sel.waId)}
+                        <span className="text-muted-foreground/40">·</span>
+                        <span className={cn('font-bold', corPorNumero.get(sel.phoneNumberId)?.texto)}>
+                          por {numeroDaConversa?.nome ?? sel.phoneNumberId}
+                        </span>
+                        {conversaAtual?.aguardandoDesde && (
+                          <>
+                            <span className="text-muted-foreground/40">·</span>
+                            <span className="font-bold text-amber-700 dark:text-amber-400 tabular-nums">
+                              esperando resposta há {formatarEspera(conversaAtual.aguardandoDesde, agora)}
+                            </span>
+                          </>
+                        )}
+                      </p>
+                    </div>
                   </div>
                   {janela ? (
                     <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-2 py-1 rounded-full shrink-0">

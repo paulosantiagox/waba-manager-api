@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -31,6 +31,10 @@ export interface Conversa {
   ultimaDirecao: 'in' | 'out';
   ultimaEm: string;
   ultimaEntrada: string | null;
+  /** Quando começou a espera. Null = já respondemos, nada pendente. */
+  aguardandoDesde: string | null;
+  /** Mensagens recebidas depois da nossa última resposta. */
+  naoRespondidas: number;
 }
 
 export interface Mensagem {
@@ -130,6 +134,8 @@ export function useConversas(phoneNumberIds: string[]) {
         ultimaDirecao: r.ultima_direcao as 'in' | 'out',
         ultimaEm: r.ultima_em as string,
         ultimaEntrada: (r.ultima_entrada as string) ?? null,
+        aguardandoDesde: (r.aguardando_desde as string) ?? null,
+        naoRespondidas: (r.nao_respondidas as number) ?? 0,
       }));
     },
     enabled: phoneNumberIds.length > 0,
@@ -228,6 +234,35 @@ export function useEnviarMensagem() {
       queryClient.invalidateQueries({ queryKey: ['chat-conversas', variaveis.numero.phoneNumberId] });
     },
   });
+}
+
+/**
+ * Relógio que avança sozinho, para o tempo de espera correr na tela sem
+ * depender de recarregar. Devolve o instante atual em milissegundos.
+ */
+export function useAgora(intervaloMs = 1000): number {
+  const [agora, setAgora] = useState(() => Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => setAgora(Date.now()), intervaloMs);
+    return () => clearInterval(t);
+  }, [intervaloMs]);
+
+  return agora;
+}
+
+/** "45s", "12min 30s", "3h 12min", "2d 4h" — o que fizer sentido na escala. */
+export function formatarEspera(desde: string, agora: number): string {
+  const seg = Math.max(0, Math.floor((agora - new Date(desde).getTime()) / 1000));
+  if (seg < 60) return `${seg}s`;
+
+  const min = Math.floor(seg / 60);
+  if (min < 60) return `${min}min ${seg % 60}s`;
+
+  const horas = Math.floor(min / 60);
+  if (horas < 24) return `${horas}h ${min % 60}min`;
+
+  return `${Math.floor(horas / 24)}d ${horas % 24}h`;
 }
 
 /** Traduz o erro da Meta para algo acionável em português. */
