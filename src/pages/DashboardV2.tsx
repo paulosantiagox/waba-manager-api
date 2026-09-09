@@ -18,7 +18,8 @@ import {
   Clock,
   ListFilter,
   Ban,
-  Building2
+  Building2,
+  MessageSquare
 } from 'lucide-react';
 import { numeroBloqueado, rotuloStatusNumero } from '@/hooks/useAccountHealth';
 import { Button } from '@/components/ui/button';
@@ -94,6 +95,17 @@ const DashboardV2 = () => {
     [businessManagers]
   );
 
+  // Nome da WABA sem bater na Meta: cada BM cadastrada guarda a sub-BM, e o
+  // sub_bm_id é o próprio waba_id dos números.
+  const nomeWabaPorId = useMemo(
+    () => Object.fromEntries(
+      businessManagers
+        .filter(bm => bm.subBmId && bm.subBmName)
+        .map(bm => [bm.subBmId as string, bm.subBmName as string])
+    ),
+    [businessManagers]
+  );
+
   const handleUpdateAll = async () => {
     setIsUpdating(true);
     try {
@@ -121,15 +133,29 @@ const DashboardV2 = () => {
     return `${days}d`;
   };
 
-  // Agrupa os números de um projeto pela BM (mantém a ordem já aplicada).
-  const agruparPorBm = (numeros: WhatsAppNumber[]): [string, WhatsAppNumber[]][] => {
-    const mapa = new Map<string, WhatsAppNumber[]>();
+  // Agrupa os números de um projeto em BM → WABA (mantém a ordem já aplicada).
+  // Map preserva a ordem de inserção, então o modo de ordenação escolhido
+  // continua valendo dentro de cada WABA.
+  const agruparPorBmEWaba = (numeros: WhatsAppNumber[]) => {
+    const porBm = new Map<string, Map<string, WhatsAppNumber[]>>();
     for (const n of numeros) {
       const bm = nomeBmPorId[n.businessManagerId ?? ''] || 'Sem BM';
-      if (!mapa.has(bm)) mapa.set(bm, []);
-      mapa.get(bm)!.push(n);
+      if (!porBm.has(bm)) porBm.set(bm, new Map());
+      const porWaba = porBm.get(bm)!;
+      const waba = n.wabaId || 'sem-waba';
+      if (!porWaba.has(waba)) porWaba.set(waba, []);
+      porWaba.get(waba)!.push(n);
     }
-    return Array.from(mapa.entries());
+
+    return Array.from(porBm.entries()).map(([bmNome, porWaba]) => ({
+      bmNome,
+      total: Array.from(porWaba.values()).reduce((soma, lista) => soma + lista.length, 0),
+      wabas: Array.from(porWaba.entries()).map(([wabaId, numerosDaWaba]) => ({
+        wabaId,
+        wabaNome: nomeWabaPorId[wabaId] ?? '',
+        numerosDaWaba,
+      })),
+    }));
   };
 
   const renderNumberCard = (number: any) => {
@@ -320,8 +346,8 @@ const DashboardV2 = () => {
                   </h2>
                 </div>
 
-                {/* Subcategoria por BM dentro do projeto */}
-                {agruparPorBm(projectNumbers).map(([bmNome, numerosDaBm]) => (
+                {/* Subcategoria por BM e, dentro dela, por WABA */}
+                {agruparPorBmEWaba(projectNumbers).map(({ bmNome, total, wabas }) => (
                   <div
                     key={bmNome}
                     className="mb-4 rounded-xl border border-primary/15 bg-primary/[0.035] overflow-hidden"
@@ -334,13 +360,40 @@ const DashboardV2 = () => {
                         {bmNome}
                       </span>
                       <span className="text-[10px] font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full flex-shrink-0">
-                        {numerosDaBm.length}
+                        {total}
+                      </span>
+                      <span className="text-[10px] text-primary/60 font-medium flex-shrink-0">
+                        {wabas.length} {wabas.length === 1 ? 'WABA' : 'WABAs'}
                       </span>
                       <span className="flex-1 h-px bg-primary/20 ml-1" />
                     </div>
 
-                    <div className="p-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
-                      {numerosDaBm.map(renderNumberCard)}
+                    <div className="p-3 space-y-2.5">
+                      {wabas.map(({ wabaId, wabaNome, numerosDaWaba }) => (
+                        <div
+                          key={wabaId}
+                          className="rounded-lg border border-border/60 bg-background/70 p-2.5"
+                        >
+                          {/* Faixa da WABA — mais discreta que a da BM */}
+                          <div className="flex items-center gap-2 mb-2">
+                            <MessageSquare className="w-3.5 h-3.5 text-primary/60 flex-shrink-0" />
+                            <span className="text-xs font-bold truncate">
+                              {wabaNome || 'WABA sem nome'}
+                            </span>
+                            <span className="font-mono text-[9px] text-muted-foreground flex-shrink-0">
+                              {wabaId}
+                            </span>
+                            <span className="text-[9px] font-bold bg-primary/15 text-primary px-1.5 py-0.5 rounded-full flex-shrink-0">
+                              {numerosDaWaba.length}
+                            </span>
+                            <span className="flex-1 h-px bg-border" />
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
+                            {numerosDaWaba.map(renderNumberCard)}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ))}
