@@ -17,6 +17,7 @@ import NotFound from "./pages/NotFound";
 import DashboardV2 from "./pages/DashboardV2";
 import Templates from "./pages/Templates";
 import Broadcasts from "./pages/Broadcasts";
+import Chat from "./pages/Chat";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -60,6 +61,7 @@ const AppRoutes = () => {
       <Route path="/projects/:id" element={<RotaProtegida nivelMinimo={nivelDaRota("/projects")}><ProjectDetail /></RotaProtegida>} />
       <Route path="/campaigns" element={<RotaProtegida nivelMinimo={nivelDaRota("/campaigns")}><Campaigns /></RotaProtegida>} />
       <Route path="/broadcasts" element={<RotaProtegida nivelMinimo={nivelDaRota("/broadcasts")}><Broadcasts /></RotaProtegida>} />
+      <Route path="/chat" element={<RotaProtegida nivelMinimo={nivelDaRota("/chat")}><Chat /></RotaProtegida>} />
       <Route path="/templates" element={<RotaProtegida nivelMinimo={nivelDaRota("/templates")}><Templates /></RotaProtegida>} />
       <Route path="/users" element={<RotaProtegida nivelMinimo={nivelDaRota("/users")}><UsersPage /></RotaProtegida>} />
       <Route path="/settings" element={<RotaProtegida nivelMinimo={nivelDaRota("/settings")}><Settings /></RotaProtegida>} />

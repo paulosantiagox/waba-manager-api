@@ -425,3 +425,65 @@ export const fetchWABAName = async (
 
   return response.json();
 };
+
+// ---------------------------------------------------------------------------
+// Bate-papo
+// ---------------------------------------------------------------------------
+
+export interface EnvioResultado {
+  metaMessageId: string;
+}
+
+/** Erro da Meta com o código preservado, para a UI explicar o motivo real. */
+export class MetaEnvioError extends Error {
+  constructor(
+    message: string,
+    readonly code?: number,
+    readonly subcode?: number,
+  ) {
+    super(message);
+    this.name = 'MetaEnvioError';
+  }
+}
+
+/**
+ * Envia texto livre para um contato.
+ *
+ * ATENÇÃO: a Cloud API só aceita texto livre dentro da janela de 24h contada a
+ * partir da última mensagem que o CLIENTE mandou. Fora dela a Meta devolve o
+ * código 131047 e o único caminho é template aprovado.
+ */
+export const enviarMensagemTexto = async (
+  phoneNumberId: string,
+  accessToken: string,
+  paraWaId: string,
+  texto: string,
+): Promise<EnvioResultado> => {
+  const response = await fetch(`${META_API_BASE}/${phoneNumberId}/messages`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to: paraWaId,
+      type: 'text',
+      text: { preview_url: false, body: texto },
+    }),
+  });
+
+  const dados = await response.json();
+
+  if (!response.ok) {
+    const err = dados?.error ?? {};
+    throw new MetaEnvioError(
+      err.message || 'Erro ao enviar mensagem',
+      err.code,
+      err.error_subcode,
+    );
+  }
+
+  return { metaMessageId: dados?.messages?.[0]?.id ?? '' };
+};
