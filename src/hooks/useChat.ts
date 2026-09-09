@@ -106,15 +106,18 @@ export function useNumerosDoChat() {
   });
 }
 
-/** Conversas de um número, mais recente primeiro. */
-export function useConversas(phoneNumberId: string | null) {
+/**
+ * Conversas de um ou mais números, mais recente primeiro. Passando vários,
+ * as conversas dos três aparecem misturadas numa caixa de entrada só.
+ */
+export function useConversas(phoneNumberIds: string[]) {
   return useQuery({
-    queryKey: ['chat-conversas', phoneNumberId],
+    queryKey: ['chat-conversas', [...phoneNumberIds].sort()],
     queryFn: async (): Promise<Conversa[]> => {
       const { data, error } = await supabase
         .from('waba_conversas')
         .select('*')
-        .eq('phone_number_id', phoneNumberId)
+        .in('phone_number_id', phoneNumberIds)
         .order('ultima_em', { ascending: false });
 
       if (error) throw error;
@@ -157,25 +160,20 @@ export function useMensagens(phoneNumberId: string | null, contatoWaId: string |
  * Recarrega conversa e lista quando o webhook grava algo novo.
  * Sem isso a mensagem recebida só apareceria ao recarregar a página.
  */
-export function useChatRealtime(phoneNumberId: string | null) {
+export function useChatRealtime() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (!phoneNumberId) return;
-
+    // Sem filtro por número: a caixa de entrada é compartilhada e a RLS já
+    // limita o que este usuário enxerga.
     const canal = supabase
-      .channel(`chat-${phoneNumberId}`)
+      .channel('chat-waba-mensagens')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'waba_mensagens',
-          filter: `phone_number_id=eq.${phoneNumberId}`,
-        },
+        { event: '*', schema: 'public', table: 'waba_mensagens' },
         () => {
           queryClient.invalidateQueries({ queryKey: ['chat-mensagens'] });
-          queryClient.invalidateQueries({ queryKey: ['chat-conversas', phoneNumberId] });
+          queryClient.invalidateQueries({ queryKey: ['chat-conversas'] });
         },
       )
       .subscribe();
@@ -183,7 +181,7 @@ export function useChatRealtime(phoneNumberId: string | null) {
     return () => {
       supabase.removeChannel(canal);
     };
-  }, [phoneNumberId, queryClient]);
+  }, [queryClient]);
 }
 
 /** Envia na Meta e grava o que saiu, para a conversa ficar completa. */
