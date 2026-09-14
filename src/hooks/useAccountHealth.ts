@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { fetchNumberHealth, fetchWabaHealth, MetaHealthError } from '@/services/metaApi';
+import { MetaHealthError } from '@/services/metaApi';
 
 /**
  * Saúde das contas na Meta.
@@ -25,10 +25,17 @@ export interface WabaSaude {
   errors: MetaHealthError[];
   warnings: string[];
   checkedAt: string;
+  /**
+   * A Meta recusou a consulta. É o sintoma típico de BM banida: o token cai e a
+   * chamada volta erro em vez de um health_status bonito. Antes esse caso era
+   * descartado e a conta ficava verde para sempre.
+   */
+  erroApi: string | null;
+  erroApiCodigo: number | null;
 }
 
-/** Conta sem poder enviar (impeditivo). */
-export const contaBloqueada = (c: WabaSaude) => c.canSendMessage === 'BLOCKED';
+/** Conta sem poder enviar — ou que a Meta nem deixa consultar (impeditivo). */
+export const contaBloqueada = (c: WabaSaude) => c.canSendMessage === 'BLOCKED' || !!c.erroApi;
 
 /**
  * Conta com aviso: envio limitado, revisão pendente/reprovada ou qualquer
@@ -86,6 +93,8 @@ export function useWabaHealth() {
           errors: (row.errors as MetaHealthError[]) ?? [],
           warnings: (row.warnings as string[]) ?? [],
           checkedAt: row.checked_at as string,
+          erroApi: (row.erro_api as string) ?? null,
+          erroApiCodigo: (row.erro_api_codigo as number) ?? null,
         };
       }
       return mapa;
@@ -96,107 +105,32 @@ export function useWabaHealth() {
 
 // ─── Verificação (consulta a Meta e salva) ───────────────────────────────────
 
-interface ContaParaChecar {
-  wabaId: string;
-  accessToken: string;
-}
-
-interface NumeroParaChecar {
-  id: string;             // id da linha em waba_whatsapp_numbers
-  phoneNumberId: string;
-  accessToken: string;
-}
-
-export interface ResultadoChecagem {
-  numerosChecados: number;
-  numerosBloqueados: number;
-  wabasChecadas: number;
-  wabasBloqueadas: number;
-  falhas: number;
-}
-
 /**
- * Varre números e WABAs na Meta e grava o resultado. Falha em uma conta não
- * derruba as outras — só conta em `falhas`.
+ * Pede uma verificação imediata. Usa o MESMO mecanismo do agendamento automático
+ * (funções no banco + pg_net, a cada 15 min): cobre todas as contas, grava erro
+ * da Meta como estado e os tokens não passam pelo navegador.
+ *
+ * Devolve quantas consultas foram disparadas; 0 = já havia uma em andamento.
  */
 export function useVerificarSaude() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
-      numeros,
-      contas,
-    }: {
-      numeros: NumeroParaChecar[];
-      contas: ContaParaChecar[];
-    }): Promise<ResultadoChecagem> => {
-      let falhas = 0;
-      let numerosBloqueados = 0;
-      let wabasBloqueadas = 0;
-      const agora = new Date().toISOString();
+    mutationFn: async (): Promise<number> => {
+      const { data: disparadas, error } = await supabase.rpc('waba_saude_verificar_agora');
+      if (error) throw error;
 
-      // 1) Status de cada número
-      const numeroResultados = await Promise.all(
-        numeros.map(async n => {
-          try {
-            const h = await fetchNumberHealth(n.phoneNumberId, n.accessToken);
-            return { id: n.id, status: h.status ?? null, nameStatus: h.name_status ?? null };
-          } catch {
-            falhas++;
-            return null;
-          }
-        })
-      );
-
-      for (const r of numeroResultados) {
-        if (!r) continue;
-        if (numeroBloqueado(r.status)) numerosBloqueados++;
-        const { error } = await supabase
-          .from('waba_whatsapp_numbers')
-          .update({ meta_status: r.status, name_status: r.nameStatus, health_checked_at: agora })
-          .eq('id', r.id);
-        if (error) falhas++;
+      if ((disparadas as number) > 0) {
+        // As respostas da Meta chegam em poucos segundos. O que atrasar é
+        // processado pelo agendamento de 2 em 2 minutos.
+        await new Promise(resolve => setTimeout(resolve, 8000));
+        const { error: erroProcessar } = await supabase.rpc('waba_saude_processar_agora');
+        if (erroProcessar) throw erroProcessar;
       }
 
-      // 2) Saúde de cada WABA
-      const linhas: Record<string, unknown>[] = [];
-      await Promise.all(
-        contas.map(async c => {
-          try {
-            const h = await fetchWabaHealth(c.wabaId, c.accessToken);
-            if (h.canSendMessage === 'BLOCKED') wabasBloqueadas++;
-            linhas.push({
-              waba_id: h.id,
-              waba_name: h.name ?? null,
-              status: h.status ?? null,
-              account_review_status: h.account_review_status ?? null,
-              can_send_message: h.canSendMessage ?? null,
-              errors: h.errors,
-              warnings: h.warnings,
-              checked_at: agora,
-            });
-          } catch {
-            falhas++;
-          }
-        })
-      );
-
-      if (linhas.length > 0) {
-        const { error } = await supabase
-          .from('waba_account_health')
-          .upsert(linhas, { onConflict: 'waba_id' });
-        if (error) falhas++;
-      }
-
-      return {
-        numerosChecados: numeroResultados.filter(Boolean).length,
-        numerosBloqueados,
-        wabasChecadas: linhas.length,
-        wabasBloqueadas,
-        falhas,
-      };
+      return (disparadas as number) ?? 0;
     },
-    onSuccess: () => {
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['waba-health'] });
       queryClient.invalidateQueries({ queryKey: ['whatsapp-numbers'] });
       queryClient.invalidateQueries({ queryKey: ['all-whatsapp-numbers'] });

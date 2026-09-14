@@ -27,7 +27,6 @@ import {
   useVerificarSaude, useWabaHealth, numeroBloqueado, rotuloStatusNumero,
   contaBloqueada, contaComAviso, numeroComAviso,
 } from '@/hooks/useAccountHealth';
-import { useWabaAccounts as useAccounts } from '@/hooks/useWabaTemplates';
 import { Ban, AlertTriangle } from 'lucide-react';
 
 const MasterDashboard = () => {
@@ -152,42 +151,37 @@ const UserDashboard = () => {
   const projectIds = projects.map(p => p.id);
   const { data: recentChanges = [], refetch: refetchChanges } = useRecentStatusChanges(projectIds);
 
-  // Contas WABA (trazem o token da BM) para a verificação de bloqueios.
-  const { data: wabaAccounts = [] } = useAccounts();
+  // A verificação roda sozinha no banco a cada 15 min; o botão só antecipa.
   const { mutateAsync: verificarSaude } = useVerificarSaude();
-
-  const tokenPorWaba = useMemo(
-    () => Object.fromEntries(wabaAccounts.map(a => [a.wabaId, a.accessToken])),
-    [wabaAccounts]
-  );
-
-  const numerosParaChecar = useMemo(
-    () =>
-      allNumbers
-        .filter(n => n.isVisible && n.phoneNumberId && tokenPorWaba[n.wabaId])
-        .map(n => ({ id: n.id, phoneNumberId: n.phoneNumberId, accessToken: tokenPorWaba[n.wabaId] })),
-    [allNumbers, tokenPorWaba]
-  );
-
-  const contasParaChecar = useMemo(
-    () => wabaAccounts.map(a => ({ wabaId: a.wabaId, accessToken: a.accessToken })),
-    [wabaAccounts]
-  );
 
   // Avisos já verificados (lidos do banco)
   const { data: saudeWabas = {} } = useWabaHealth();
+
+  // WABAs em uso: com pelo menos um número visível. As aposentadas (todos os
+  // números ocultos) seguem sendo verificadas, mas não poluem o alerta.
+  const wabasEmUso = useMemo(
+    () => new Set(allNumbers.filter(n => n.isVisible).map(n => n.wabaId)),
+    [allNumbers]
+  );
+
   const numerosBloqueados = useMemo(
     () => allNumbers.filter(n => n.isVisible && numeroBloqueado(n.metaStatus)),
     [allNumbers]
   );
   const contasBloqueadas = useMemo(
-    () => Object.values(saudeWabas).filter(contaBloqueada),
-    [saudeWabas]
+    () => Object.values(saudeWabas).filter(c => wabasEmUso.has(c.wabaId) && contaBloqueada(c)),
+    [saudeWabas, wabasEmUso]
   );
   const contasComAviso = useMemo(
-    () => Object.values(saudeWabas).filter(contaComAviso),
-    [saudeWabas]
+    () => Object.values(saudeWabas).filter(c => wabasEmUso.has(c.wabaId) && contaComAviso(c)),
+    [saudeWabas, wabasEmUso]
   );
+
+  // Quando foi a última verificação de fato (a mais recente entre as contas).
+  const ultimaVerificacao = useMemo(() => {
+    const datas = Object.values(saudeWabas).map(c => c.checkedAt).filter(Boolean);
+    return datas.length ? datas.sort().at(-1)! : null;
+  }, [saudeWabas]);
   const numerosComAviso = useMemo(
     () =>
       allNumbers.filter(
@@ -217,15 +211,10 @@ const UserDashboard = () => {
       refetchChanges();
 
       // Verifica bloqueios na Meta (banido/restrito/pagamento). A edge function
-      // só traz qualidade, que segue GREEN mesmo com o número banido.
+      // só traz qualidade, que segue GREEN mesmo com o número banido. O resultado
+      // aparece no alerta vermelho no topo do painel.
       try {
-        const r = await verificarSaude({ numeros: numerosParaChecar, contas: contasParaChecar });
-        if (r.numerosBloqueados > 0 || r.wabasBloqueadas > 0) {
-          toast.warning(
-            `Atenção: ${r.numerosBloqueados} número(s) bloqueado(s) e ${r.wabasBloqueadas} conta(s) sem envio.`,
-            { duration: 8000 }
-          );
-        }
+        await verificarSaude();
       } catch (e) {
         console.error('[saude] falha ao verificar bloqueios:', e);
       }
@@ -266,6 +255,14 @@ const UserDashboard = () => {
 
   return (
     <>
+      {/* Transparência: prova de que a verificação está rodando */}
+      <p className="text-xs text-muted-foreground mb-3">
+        Bloqueios e banimentos verificados automaticamente a cada 15 min
+        {ultimaVerificacao && (
+          <> · última verificação às {format(new Date(ultimaVerificacao), 'HH:mm')}</>
+        )}
+      </p>
+
       {/* Avisos da Meta: números bloqueados e contas sem envio */}
       {(numerosBloqueados.length > 0 || contasBloqueadas.length > 0) && (
         <div className="mb-6 rounded-xl border border-destructive/40 bg-destructive/5 p-4">
@@ -286,9 +283,11 @@ const UserDashboard = () => {
           {contasBloqueadas.map(c => (
             <p key={c.wabaId} className="text-sm text-foreground/80">
               <strong>{c.wabaName ?? c.wabaId}:</strong>{' '}
-              {c.errors.length > 0
-                ? c.errors.map(e => e.error_description).join(' · ')
-                : 'conta sem permissão de envio'}
+              {c.erroApi
+                ? `a Meta recusou a consulta — possível BM banida ou token derrubado (${c.erroApi})`
+                : c.errors.length > 0
+                  ? c.errors.map(e => e.error_description).join(' · ')
+                  : 'conta sem permissão de envio'}
             </p>
           ))}
 

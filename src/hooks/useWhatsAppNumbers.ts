@@ -71,6 +71,7 @@ export function useWhatsAppNumbers(projectId?: string) {
         metaStatus: n.meta_status || undefined,
         nameStatus: n.name_status || undefined,
         healthCheckedAt: n.health_checked_at || undefined,
+        healthErro: n.health_erro || undefined,
       }));
     },
     enabled: projectId !== undefined,
@@ -135,6 +136,7 @@ export function useAllWhatsAppNumbers() {
         metaStatus: n.meta_status || undefined,
         nameStatus: n.name_status || undefined,
         healthCheckedAt: n.health_checked_at || undefined,
+        healthErro: n.health_erro || undefined,
       }));
     },
   });

@@ -64,6 +64,8 @@ export interface WhatsAppNumber {
   /** name_status na Meta (APPROVED | DECLINED | PENDING_REVIEW...) */
   nameStatus?: string;
   healthCheckedAt?: string;
+  /** Erro ao consultar o número na Meta (ex.: número removido da WABA). */
+  healthErro?: string;
 }
 
 // Status History types
