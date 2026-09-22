@@ -218,8 +218,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // ping imediato ao montar, para aparecer no "Online agora" sem esperar 15s
     ping();
+    // Só pinga com a aba à vista. Aba escondida não precisa aparecer como
+    // "online" nem gravar no banco compartilhado a cada 15s; a revogação é
+    // checada assim que a aba volta a ficar visível (onVisible abaixo).
     const t = setInterval(() => {
-      if (!parado) ping();
+      if (!parado && document.visibilityState === 'visible') ping();
     }, 15000);
 
     // O navegador desacelera o setInterval em abas ocultas; ao voltar para a

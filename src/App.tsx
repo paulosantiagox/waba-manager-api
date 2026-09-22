@@ -14,10 +14,8 @@ import Campaigns from "./pages/Campaigns";
 import UsersPage from "./pages/Users";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
-import DashboardV2 from "./pages/DashboardV2";
 import Templates from "./pages/Templates";
 import Broadcasts from "./pages/Broadcasts";
-import Chat from "./pages/Chat";
 import { Loader2 } from "lucide-react";
 
 // Sem vigília: o banco é compartilhado com os sistemas de vendas. Nada de
@@ -67,12 +65,12 @@ const AppRoutes = () => {
       <Route path="/auth" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Auth />} />
       <Route path="/" element={<Navigate to={isAuthenticated ? "/dashboard" : "/auth"} replace />} />
       <Route path="/dashboard" element={<RotaProtegida nivelMinimo={nivelDaRota("/dashboard")}><Dashboard /></RotaProtegida>} />
-      <Route path="/dashboard-v2" element={<RotaProtegida nivelMinimo={nivelDaRota("/dashboard-v2")}><DashboardV2 /></RotaProtegida>} />
+      {/* O V2 virou o dashboard oficial: links antigos continuam funcionando */}
+      <Route path="/dashboard-v2" element={<Navigate to="/dashboard" replace />} />
       <Route path="/projects" element={<RotaProtegida nivelMinimo={nivelDaRota("/projects")}><Projects /></RotaProtegida>} />
       <Route path="/projects/:id" element={<RotaProtegida nivelMinimo={nivelDaRota("/projects")}><ProjectDetail /></RotaProtegida>} />
       <Route path="/campaigns" element={<RotaProtegida nivelMinimo={nivelDaRota("/campaigns")}><Campaigns /></RotaProtegida>} />
       <Route path="/broadcasts" element={<RotaProtegida nivelMinimo={nivelDaRota("/broadcasts")}><Broadcasts /></RotaProtegida>} />
-      <Route path="/chat" element={<RotaProtegida nivelMinimo={nivelDaRota("/chat")}><Chat /></RotaProtegida>} />
       <Route path="/templates" element={<RotaProtegida nivelMinimo={nivelDaRota("/templates")}><Templates /></RotaProtegida>} />
       <Route path="/users" element={<RotaProtegida nivelMinimo={nivelDaRota("/users")}><UsersPage /></RotaProtegida>} />
       <Route path="/settings" element={<RotaProtegida nivelMinimo={nivelDaRota("/settings")}><Settings /></RotaProtegida>} />

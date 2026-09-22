@@ -14,7 +14,6 @@ import {
   ChevronLeft,
   FileText,
   Send,
-  MessagesSquare,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { BrasiliaClockWidget } from './BrasiliaClockWidget';
@@ -33,12 +32,10 @@ const Sidebar = ({ collapsed, onToggle, isMobile = false }: SidebarProps) => {
   // que levaria a um redirect.
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
-    { icon: LayoutDashboard, label: 'Dashboard V2', href: '/dashboard-v2' },
     { icon: FolderKanban, label: 'Projetos', href: '/projects' },
     { icon: Megaphone, label: 'Campanhas', href: '/campaigns' },
     { icon: Send, label: 'Disparos', href: '/broadcasts' },
     { icon: FileText, label: 'Templates', href: '/templates' },
-    { icon: MessagesSquare, label: 'Bate-papo', href: '/chat' },
     { icon: Users, label: 'Usuários', href: '/users' },
   ].filter((item) => podeRota(role, item.href));
 

@@ -1,193 +1,103 @@
 import { useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { temNivel } from '@/lib/roles';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import StatsCard from '@/components/dashboard/StatsCard';
-import ProjectCard from '@/components/dashboard/ProjectCard';
-import { useProjects, useCreateProject } from '@/hooks/useProjects';
+import AlertasSaudeMeta from '@/components/dashboard/AlertasSaudeMeta';
+import { useProjects } from '@/hooks/useProjects';
 import { useAllWhatsAppNumbers } from '@/hooks/useWhatsAppNumbers';
-import { useUsers } from '@/hooks/useUsers';
 import { useRecentStatusChanges } from '@/hooks/useRecentStatusChanges';
-import { Users, FolderKanban, Phone, Megaphone, Activity, TrendingUp, TrendingDown, ArrowRight, Loader2, Plus, Maximize2, RefreshCw } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { useBusinessManagers } from '@/hooks/useBusinessManagers';
+import { WhatsAppNumber } from '@/types';
+import { 
+  Activity, 
+  TrendingUp, 
+  TrendingDown, 
+  Phone, 
+  Loader2,
+  ChevronRight,
+  RefreshCw,
+  Clock,
+  ListFilter,
+  Ban,
+  Building2,
+  MessageSquare
+} from 'lucide-react';
+import { numeroBloqueado, rotuloStatusNumero, useVerificarSaude } from '@/hooks/useAccountHealth';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import QualityBadge from '@/components/dashboard/QualityBadge';
-import { Link, useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 import { supabase as lovableSupabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
-import {
-  useVerificarSaude, useWabaHealth, numeroBloqueado, rotuloStatusNumero,
-  contaBloqueada, contaComAviso, numeroComAviso,
-} from '@/hooks/useAccountHealth';
-import { Ban, AlertTriangle } from 'lucide-react';
+import StatusHistoryModal from '@/components/modals/StatusHistoryModal';
 
-const MasterDashboard = () => {
-  const { data: users = [] } = useUsers();
-  const { data: projects = [] } = useProjects();
-  const { data: numbers = [] } = useAllWhatsAppNumbers();
+const Dashboard = () => {
+  const { can } = useAuth();
+  // Atualizar consulta a Meta: é ação de operação (user+). Consultor só lê.
+  const podeAtualizar = can('user');
+  const { data: projects = [], isLoading: loadingProjects } = useProjects();
+  const { data: allNumbers = [], isLoading: loadingNumbers, refetch: refetchNumbers } = useAllWhatsAppNumbers();
+  const { mutateAsync: verificarSaude } = useVerificarSaude();
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [selectedNumberId, setSelectedNumberId] = useState<string | null>(null);
+  const [sortMode, setSortMode] = useState<'none' | 'priority' | 'days'>('none');
 
-  // useUsers() já retorna só quem tem acesso ativo ao app 'waba'.
-  // O antigo estado 'pending' deixou de existir: ou tem acesso, ou não aparece.
-  const activeUsers = users.filter(u => u.ativo && !temNivel(u.role, 'admin')).length;
-  const adminUsers = users.filter(u => temNivel(u.role, 'admin')).length;
-
-  const statusCounts = {
-    high: numbers.filter(n => n.qualityRating === 'HIGH').length,
-    medium: numbers.filter(n => n.qualityRating === 'MEDIUM').length,
-    low: numbers.filter(n => n.qualityRating === 'LOW').length,
+  const getQualityValue = (rating: string) => {
+    switch (rating) {
+      case 'HIGH': return 3;
+      case 'MEDIUM': return 2;
+      case 'LOW': return 1;
+      default: return 0;
+    }
   };
 
-  return (
-    <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4 mb-8">
-        <StatsCard title="Usuários Ativos" value={activeUsers} subtitle={`${adminUsers} administradores`} icon={Users} variant="primary" />
-        <StatsCard title="Projetos" value={projects.length} icon={FolderKanban} />
-        <StatsCard title="Números" value={numbers.length} icon={Phone} />
-        <StatsCard title="Disparos" value={0} icon={Megaphone} />
-        <StatsCard title="Alta" value={statusCounts.high} icon={TrendingUp} variant="success" />
-        <StatsCard title="Média" value={statusCounts.medium} icon={Activity} variant="warning" />
-        <StatsCard title="Baixa" value={statusCounts.low} icon={TrendingDown} variant="destructive" />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="animate-slide-up">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-              <Activity className="w-5 h-5 text-primary" />
-              Visão Geral do Sistema
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Bem-vindo ao painel de administração. Aqui você pode gerenciar todos os usuários, 
-              projetos e monitorar a saúde global do sistema.
-            </p>
-            <div className="grid grid-cols-2 gap-4 pt-2">
-              <div className="bg-muted/50 p-4 rounded-xl border border-border/50">
-                <p className="text-xs text-muted-foreground mb-1">Taxa de Aprovação</p>
-                <p className="text-xl font-bold">{(activeUsers / (users.length || 1) * 100).toFixed(1)}%</p>
-              </div>
-              <div className="bg-muted/50 p-4 rounded-xl border border-border/50">
-                <p className="text-xs text-muted-foreground mb-1">Média Projetos/User</p>
-                <p className="text-xl font-bold">{(projects.length / (activeUsers || 1)).toFixed(1)}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="animate-slide-up [animation-delay:0.1s]">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Status do Servidor</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm">
-                  <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-                  API Gateway
-                </div>
-                <Badge variant="outline" className="text-[10px] uppercase font-bold text-success border-success/20 bg-success/5">Online</Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm">
-                  <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-                  Database
-                </div>
-                <Badge variant="outline" className="text-[10px] uppercase font-bold text-success border-success/20 bg-success/5">Online</Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm">
-                  <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-                  WhatsApp Scraper
-                </div>
-                <Badge variant="outline" className="text-[10px] uppercase font-bold text-success border-success/20 bg-success/5">Online</Badge>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </>
-  );
-};
-
-const getQualityLabel = (quality: string) => {
-  switch (quality) {
-    case 'HIGH': return 'Alta';
-    case 'MEDIUM': return 'Média';
-    case 'LOW': return 'Baixa';
-    default: return quality;
-  }
-};
-
-const getQualityColor = (quality: string) => {
-  switch (quality) {
-    case 'HIGH': return 'text-success';
-    case 'MEDIUM': return 'text-warning';
-    case 'LOW': return 'text-destructive';
-    default: return 'text-muted-foreground';
-  }
-};
-
-const UserDashboard = () => {
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  const { data: projects = [], isLoading } = useProjects();
-  const { data: allNumbers = [], refetch: refetchNumbers } = useAllWhatsAppNumbers();
-  const createProject = useCreateProject();
-  
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [projectName, setProjectName] = useState('');
-  const [projectDescription, setProjectDescription] = useState('');
+  const getDays = (number: any) => {
+    const date = number.lastStatusChange || number.createdAt;
+    if (!date) return 0;
+    return differenceInDays(new Date(), new Date(date));
+  };
 
   const projectIds = projects.map(p => p.id);
+  
+  // NÚMEROS FILTRADOS E ORDENADOS
+  let userNumbers = allNumbers.filter(n => projectIds.includes(n.projectId) && n.isVisible);
+
+  if (sortMode === 'priority') {
+    userNumbers = [...userNumbers].sort((a, b) => {
+      const qA = getQualityValue(a.qualityRating);
+      const qB = getQualityValue(b.qualityRating);
+      if (qA !== qB) return qB - qA;
+      return getDays(b) - getDays(a);
+    });
+  } else if (sortMode === 'days') {
+    userNumbers = [...userNumbers].sort((a, b) => {
+      const qA = a.qualityRating === 'HIGH' ? 1 : 0;
+      const qB = b.qualityRating === 'HIGH' ? 1 : 0;
+      if (qA !== qB) return qB - qA;
+      return getDays(b) - getDays(a);
+    });
+  }
+
   const { data: recentChanges = [], refetch: refetchChanges } = useRecentStatusChanges(projectIds);
 
-  // A verificação roda sozinha no banco às 7h e 13h; o botão antecipa.
-  const { mutateAsync: verificarSaude } = useVerificarSaude();
-
-  // Avisos já verificados (lidos do banco)
-  const { data: saudeWabas = {} } = useWabaHealth();
-
-  // WABAs em uso: com pelo menos um número visível. As aposentadas (todos os
-  // números ocultos) seguem sendo verificadas, mas não poluem o alerta.
-  const wabasEmUso = useMemo(
-    () => new Set(allNumbers.filter(n => n.isVisible).map(n => n.wabaId)),
-    [allNumbers]
+  // BMs para nomear os subgrupos dentro de cada projeto.
+  const { data: businessManagers = [] } = useBusinessManagers();
+  const nomeBmPorId = useMemo(
+    () => Object.fromEntries(businessManagers.map(bm => [bm.id, bm.mainBmName])),
+    [businessManagers]
   );
 
-  const numerosBloqueados = useMemo(
-    () => allNumbers.filter(n => n.isVisible && numeroBloqueado(n.metaStatus)),
-    [allNumbers]
-  );
-  const contasBloqueadas = useMemo(
-    () => Object.values(saudeWabas).filter(c => wabasEmUso.has(c.wabaId) && contaBloqueada(c)),
-    [saudeWabas, wabasEmUso]
-  );
-  const contasComAviso = useMemo(
-    () => Object.values(saudeWabas).filter(c => wabasEmUso.has(c.wabaId) && contaComAviso(c)),
-    [saudeWabas, wabasEmUso]
-  );
-
-  // Quando foi a última verificação de fato (a mais recente entre as contas).
-  const ultimaVerificacao = useMemo(() => {
-    const datas = Object.values(saudeWabas).map(c => c.checkedAt).filter(Boolean);
-    return datas.length ? datas.sort().at(-1)! : null;
-  }, [saudeWabas]);
-  const numerosComAviso = useMemo(
-    () =>
-      allNumbers.filter(
-        n => n.isVisible && !numeroBloqueado(n.metaStatus) && numeroComAviso(n.metaStatus, n.nameStatus)
-      ),
-    [allNumbers]
+  // Nome da WABA sem bater na Meta: cada BM cadastrada guarda a sub-BM, e o
+  // sub_bm_id é o próprio waba_id dos números.
+  const nomeWabaPorId = useMemo(
+    () => Object.fromEntries(
+      businessManagers
+        .filter(bm => bm.subBmId && bm.subBmName)
+        .map(bm => [bm.subBmId as string, bm.subBmName as string])
+    ),
+    [businessManagers]
   );
 
   const handleUpdateAll = async () => {
@@ -197,326 +107,375 @@ const UserDashboard = () => {
         body: { manual: true }
       });
 
-      if (error) {
-        console.error('Functions error:', error);
-        throw error;
-      }
-      
-      if (!data || data.success === false) {
-        throw new Error(data?.error || 'Erro ao processar atualização');
-      }
+      if (error) throw error;
+      if (!data || data.success === false) throw new Error(data?.error || 'Erro ao processar atualização');
       
       toast.success(`${data.numbersUpdated} números atualizados com sucesso!`);
       refetchNumbers();
       refetchChanges();
 
-      // Verifica bloqueios na Meta (banido/restrito/pagamento). A edge function
-      // só traz qualidade, que segue GREEN mesmo com o número banido. O resultado
-      // aparece no alerta vermelho no topo do painel.
+      // Qualidade não denuncia banimento (segue GREEN). Checa bloqueios também.
       try {
         await verificarSaude();
       } catch (e) {
         console.error('[saude] falha ao verificar bloqueios:', e);
       }
     } catch (error: any) {
-      console.error('Error updating status:', error);
       toast.error(`Erro ao atualizar números: ${error.message || 'Erro desconhecido'}`);
     } finally {
       setIsUpdating(false);
     }
   };
 
-  const userNumbers = allNumbers.filter(n => projects.some(p => p.id === n.projectId));
-
-  const statusCounts = {
-    high: userNumbers.filter(n => n.qualityRating === 'HIGH').length,
-    medium: userNumbers.filter(n => n.qualityRating === 'MEDIUM').length,
-    low: userNumbers.filter(n => n.qualityRating === 'LOW').length,
+  const getDaysInStatus = (number: any) => {
+    const date = number.lastStatusChange || number.createdAt;
+    if (!date) return "0d";
+    const days = differenceInDays(new Date(), new Date(date));
+    return `${days}d`;
   };
 
-  const handleCreateProject = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!projectName.trim()) return;
+  // Agrupa os números de um projeto em BM → WABA (mantém a ordem já aplicada).
+  // Map preserva a ordem de inserção, então o modo de ordenação escolhido
+  // continua valendo dentro de cada WABA.
+  const agruparPorBmEWaba = (numeros: WhatsAppNumber[]) => {
+    const porBm = new Map<string, Map<string, WhatsAppNumber[]>>();
+    for (const n of numeros) {
+      const bm = nomeBmPorId[n.businessManagerId ?? ''] || 'Sem BM';
+      if (!porBm.has(bm)) porBm.set(bm, new Map());
+      const porWaba = porBm.get(bm)!;
+      const waba = n.wabaId || 'sem-waba';
+      if (!porWaba.has(waba)) porWaba.set(waba, []);
+      porWaba.get(waba)!.push(n);
+    }
 
-    const result = await createProject.mutateAsync({
-      name: projectName.trim(),
-      description: projectDescription.trim() || undefined,
-    });
-
-    setProjectName('');
-    setProjectDescription('');
-    setIsDialogOpen(false);
-    navigate(`/projects/${result.id}`);
+    return Array.from(porBm.entries()).map(([bmNome, porWaba]) => ({
+      bmNome,
+      total: Array.from(porWaba.values()).reduce((soma, lista) => soma + lista.length, 0),
+      wabas: Array.from(porWaba.entries()).map(([wabaId, numerosDaWaba]) => ({
+        wabaId,
+        wabaNome: nomeWabaPorId[wabaId] ?? '',
+        numerosDaWaba,
+      })),
+    }));
   };
 
-  if (isLoading) {
-    return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+  const renderNumberCard = (number: any) => {
+    // Bloqueio na Meta prevalece sobre a qualidade: banido segue com GREEN.
+    const bloqueado = numeroBloqueado(number.metaStatus);
+    const rotuloBloqueio = rotuloStatusNumero(number.metaStatus);
+
+    return (
+    <Card
+      key={number.id}
+      className={cn(
+        "overflow-hidden border-none shadow-sm hover:shadow-md transition-shadow group cursor-pointer",
+        // Largura fixa: os blocos de WABA se ajustam ao conteudo e se
+        // empacotam lado a lado em vez de ocupar uma linha inteira cada um.
+        "w-full sm:w-[250px] sm:shrink-0",
+        bloqueado && "ring-2 ring-destructive/60 bg-destructive/5"
+      )}
+      onClick={() => setSelectedNumberId(number.id)}
+    >
+      <CardContent className="p-3">
+        <div className="flex items-start justify-between mb-2">
+          <div className="flex items-center gap-2 overflow-hidden">
+            <div className="bg-primary/10 p-1.5 rounded-lg group-hover:bg-primary/20 transition-colors shrink-0">
+              <Phone className="w-3.5 h-3.5 text-primary" />
+            </div>
+            <div>
+              <div className="flex items-center gap-1">
+                <p className="text-xs font-bold leading-tight bg-primary/5 text-primary px-1.5 py-0.5 rounded border border-primary/10">
+                  {number.customName || number.verifiedName}
+                </p>
+              </div>
+              <p className="text-[10px] text-muted-foreground truncate">
+                {number.displayPhoneNumber}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            {rotuloBloqueio && (
+              <span className={cn(
+                'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold',
+                bloqueado
+                  ? 'bg-destructive text-destructive-foreground'
+                  : 'bg-warning/20 text-warning border border-warning/40'
+              )}>
+                <Ban className="w-2.5 h-2.5" />
+                {rotuloBloqueio.toUpperCase()}
+              </span>
+            )}
+            <QualityBadge rating={number.qualityRating} size="sm" />
+          </div>
+        </div>
+        <div className="flex items-center justify-between text-[8px] text-muted-foreground mt-2 mb-1">
+          <div className="flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            <span>
+              {getDaysInStatus(number)} em {number.qualityRating === 'HIGH' ? 'Alta' : number.qualityRating === 'MEDIUM' ? 'Média' : 'Baixa'}
+            </span>
+          </div>
+          <span className="shrink-0">
+            {number.lastChecked ? format(new Date(number.lastChecked), "dd/MM HH:mm") : '--/-- --:--'}
+          </span>
+        </div>
+
+        {/* Nota discreta: não compete com o status de qualidade */}
+        {!bloqueado && number.nameStatus === 'DECLINED' && (
+          <p className="text-[8px] text-muted-foreground/70 mb-1">nome comercial reprovado</p>
+        )}
+
+        <div className="pt-2 border-t border-border/50 flex items-center justify-between">
+          <div className="flex flex-wrap gap-x-2 text-[8px] text-muted-foreground uppercase font-medium">
+            {number.previousQuality ? (
+              <span>
+                Antes: {number.previousQuality === 'HIGH' ? 'Alta' : number.previousQuality === 'MEDIUM' ? 'Média' : 'Baixa'}•{number.lastStatusChange ? format(new Date(number.lastStatusChange), "dd/MM/yy") : '--/--/--'}
+              </span>
+            ) : (
+              <span>
+                {number.qualityRating === 'HIGH' ? 'Alta' : number.qualityRating === 'MEDIUM' ? 'Média' : 'Baixa'} Desde: {format(new Date(number.lastStatusChange || number.createdAt), "dd/MM/yy")}
+              </span>
+            )}
+          </div>
+          <div className="shrink-0 ml-1">
+            {number.previousQuality ? (
+              getQualityValue(number.qualityRating) >= getQualityValue(number.previousQuality) ? (
+                <TrendingUp className="w-5 h-5 text-success" />
+              ) : (
+                <TrendingDown className="w-5 h-5 text-destructive" />
+              )
+            ) : (
+              <TrendingUp className="w-5 h-5 text-success" />
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+    );
+  };
+
+  if (loadingProjects || loadingNumbers) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center py-24">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
   }
 
   return (
-    <>
-      {/* Transparência: prova de que a verificação está rodando */}
-      <p className="text-xs text-muted-foreground mb-3">
-        Bloqueios e banimentos verificados automaticamente às 7h e às 13h — use "Atualizar Todos" para checar agora
-        {ultimaVerificacao && (
-          <> · última verificação às {format(new Date(ultimaVerificacao), 'HH:mm')}</>
-        )}
-      </p>
-
-      {/* Avisos da Meta: números bloqueados e contas sem envio */}
-      {(numerosBloqueados.length > 0 || contasBloqueadas.length > 0) && (
-        <div className="mb-6 rounded-xl border border-destructive/40 bg-destructive/5 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Ban className="w-4 h-4 text-destructive" />
-            <h3 className="font-semibold text-destructive text-sm">Restrições detectadas na Meta</h3>
-          </div>
-
-          {numerosBloqueados.length > 0 && (
-            <p className="text-sm text-foreground/80 mb-1">
-              <strong>{numerosBloqueados.length} número(s) bloqueado(s):</strong>{' '}
-              {numerosBloqueados
-                .map(n => `${n.customName || n.verifiedName} (${rotuloStatusNumero(n.metaStatus)})`)
-                .join(', ')}
-            </p>
-          )}
-
-          {contasBloqueadas.map(c => (
-            <p key={c.wabaId} className="text-sm text-foreground/80">
-              <strong>{c.wabaName ?? c.wabaId}:</strong>{' '}
-              {c.erroApi
-                ? `a Meta recusou a consulta — possível BM banida ou token derrubado (${c.erroApi})`
-                : c.errors.length > 0
-                  ? c.errors.map(e => e.error_description).join(' · ')
-                  : 'conta sem permissão de envio'}
-            </p>
-          ))}
-
-          <p className="text-xs text-muted-foreground mt-2">
-            Verifique em business.facebook.com/accountquality. Erro de pagamento se resolve
-            atualizando o meio de pagamento da conta.
+    <DashboardLayout fullHeight>
+    <div className="h-full bg-slate-50 dark:bg-slate-950 flex flex-col overflow-y-auto lg:overflow-hidden">
+      {/* Header */}
+      <header className="sticky top-0 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-border px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-col">
+          <h1 className="text-lg font-bold tracking-tight">Dashboard</h1>
+          <p className="text-xs text-muted-foreground hidden sm:block">
+            Status de todas as contas · use "Atualizar Todos" para buscar os dados mais recentes
           </p>
         </div>
-      )}
 
-      {/* Avisos: não bloqueiam o envio, mas pedem atenção */}
-      {(numerosComAviso.length > 0 || contasComAviso.length > 0) && (
-        <div className="mb-6 rounded-xl border border-warning/40 bg-warning/5 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle className="w-4 h-4 text-warning" />
-            <h3 className="font-semibold text-warning text-sm">Avisos da Meta</h3>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-1 mr-2">
+            <Button 
+              variant={sortMode === 'none' ? 'secondary' : 'ghost'} 
+              size="sm" 
+              className="h-7 text-[10px] px-2 font-bold"
+              onClick={() => setSortMode('none')}
+            >
+              Normal
+            </Button>
+            <Button 
+              variant={sortMode === 'priority' ? 'secondary' : 'ghost'} 
+              size="sm" 
+              className="h-7 text-[10px] px-2 font-bold"
+              onClick={() => setSortMode('priority')}
+            >
+              Prioridade
+            </Button>
+            <Button 
+              variant={sortMode === 'days' ? 'secondary' : 'ghost'} 
+              size="sm" 
+              className="h-7 text-[10px] px-2 font-bold"
+              onClick={() => setSortMode('days')}
+            >
+              Dias em Alta
+            </Button>
           </div>
 
-          {numerosComAviso.length > 0 && (
-            <p className="text-sm text-foreground/80 mb-1">
-              <strong>{numerosComAviso.length} número(s) com pendência:</strong>{' '}
-              {numerosComAviso
-                .map(n => {
-                  const motivo = rotuloStatusNumero(n.metaStatus)
-                    ?? (n.nameStatus === 'DECLINED' ? 'nome reprovado' : 'nome em análise');
-                  return `${n.customName || n.verifiedName} (${motivo})`;
-                })
-                .join(', ')}
-            </p>
-          )}
-
-          {contasComAviso.map(c => (
-            <p key={c.wabaId} className="text-sm text-foreground/80">
-              <strong>{c.wabaName ?? c.wabaId}:</strong>{' '}
-              {[
-                c.canSendMessage === 'LIMITED' ? 'envio limitado' : null,
-                c.accountReviewStatus && c.accountReviewStatus !== 'APPROVED'
-                  ? `revisão ${c.accountReviewStatus.toLowerCase()}`
-                  : null,
-                ...c.warnings,
-              ]
-                .filter(Boolean)
-                .join(' · ')}
-            </p>
-          ))}
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
-        <StatsCard title="Meus Projetos" value={projects.length} icon={FolderKanban} variant="primary" />
-        <StatsCard title="Números Ativos" value={userNumbers.length} icon={Phone} />
-        <StatsCard title="Disparos" value={0} icon={Megaphone} />
-        <StatsCard title="Alta Qualidade" value={statusCounts.high} icon={TrendingUp} variant="success" />
-        <StatsCard title="Média Qualidade" value={statusCounts.medium} icon={Activity} variant="warning" />
-        <StatsCard title="Baixa Qualidade" value={statusCounts.low} icon={TrendingDown} variant="destructive" />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        {/* Mudanças de Status Recentes */}
-        <div className="lg:col-span-2">
-          <Card className="h-full animate-slide-up">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-                <Activity className="w-5 h-5 text-primary" />
-                Atividade Recente
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {recentChanges.length > 0 ? (
-                <div className="space-y-1">
-                  {recentChanges.map((change) => (
-                    <Link
-                      key={change.id}
-                      to={`/projects/${change.projectId}`}
-                      className="flex items-center justify-between py-3 px-3 rounded-xl hover:bg-muted/50 transition-all group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 ${
-                          change.direction === 'up' 
-                            ? 'bg-success/10 text-success' 
-                            : 'bg-destructive/10 text-destructive'
-                        }`}>
-                          {change.direction === 'up' 
-                            ? <TrendingUp className="w-8 h-8" /> 
-                            : <TrendingDown className="w-8 h-8" />
-                          }
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="font-semibold text-sm">{change.numberName}</p>
-                            <QualityBadge rating={change.currentQuality} size="sm" />
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {change.projectName}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-1 rounded-md">
-                          {format(new Date(change.changedAt), "dd/MM HH:mm", { locale: ptBR })}
-                        </span>
-                        <ArrowRight className="w-4 h-4 text-primary opacity-0 group-hover:opacity-100 transition-all translate-x-[-4px] group-hover:translate-x-0" />
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <Activity className="w-12 h-12 text-muted-foreground/20 mb-3" />
-                  <p className="text-sm text-muted-foreground">Nenhuma mudança de status recente.</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Quick Actions / Info */}
-        <Card className="animate-slide-up [animation-delay:0.1s]">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Ações Rápidas</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Button 
-              className="w-full bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 text-primary-foreground font-bold transition-all gap-2"
+          {podeAtualizar && (
+            <Button
+              size="sm"
+              className="flex bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 text-primary-foreground font-bold transition-all gap-2 h-9"
               onClick={handleUpdateAll}
               disabled={isUpdating}
             >
               <RefreshCw className={cn("w-4 h-4", isUpdating && "animate-spin")} />
               {isUpdating ? 'Atualizando...' : 'Atualizar Todos'}
             </Button>
+          )}
+          <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 font-bold h-9 px-3 hidden md:flex">
+            {userNumbers.length} Ativos
+          </Badge>
+        </div>
+      </header>
 
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="w-full gradient-primary shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Novo Projeto
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Criar Novo Projeto</DialogTitle>
-                </DialogHeader>
-                <form className="space-y-4 mt-4" onSubmit={handleCreateProject}>
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Nome do Projeto</Label>
-                    <Input id="name" placeholder="Ex: E-commerce Principal" value={projectName} onChange={(e) => setProjectName(e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="description">Descrição (opcional)</Label>
-                    <Textarea id="description" placeholder="Descreva o propósito deste projeto..." value={projectDescription} onChange={(e) => setProjectDescription(e.target.value)} />
-                  </div>
-                  <div className="flex justify-end gap-2 pt-4">
-                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-                    <Button type="submit" className="gradient-primary" disabled={createProject.isPending}>
-                      {createProject.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                      Criar Projeto
-                    </Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
-            
-            <Link to="/projects">
-              <Button variant="outline" className="w-full mt-2">
-                <FolderKanban className="w-4 h-4 mr-2" />
-                Ver Todos Projetos
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
+      <main className="flex-1 flex flex-col lg:flex-row lg:overflow-hidden min-h-0">
+        {/* Main Content Area */}
+        <div className="lg:flex-1 lg:overflow-y-auto p-4 lg:p-6 space-y-6">
+          <AlertasSaudeMeta numeros={allNumbers} />
 
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold tracking-tight">Meus Projetos</h2>
-          <Badge variant="secondary" className="px-3 py-1">{projects.length} projetos</Badge>
+          {projects.map((project) => {
+            const projectNumbers = userNumbers.filter(n => n.projectId === project.id);
+            if (projectNumbers.length === 0) return null;
+
+            return (
+              <section key={project.id} className="space-y-3">
+                <div className="flex items-center justify-between px-1">
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                    <ChevronRight className="w-4 h-4 text-primary" />
+                    {project.name}
+                    <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded ml-2 normal-case font-medium">
+                      {projectNumbers.length}
+                    </span>
+                    {sortMode !== 'none' && (
+                      <span className="text-[10px] text-primary/70 ml-auto font-medium lowercase">
+                        ordenado por {sortMode === 'priority' ? 'prioridade' : 'dias em alta'}
+                      </span>
+                    )}
+                  </h2>
+                </div>
+
+                {/* Subcategoria por BM e, dentro dela, por WABA */}
+                {agruparPorBmEWaba(projectNumbers).map(({ bmNome, total, wabas }) => (
+                  <div
+                    key={bmNome}
+                    className="mb-4 rounded-xl border border-primary/15 bg-primary/[0.035] overflow-hidden"
+                  >
+                    {/* Faixa da BM */}
+                    <div className="flex items-center gap-2 px-3 py-2 bg-primary/10 border-b border-primary/15">
+                      <span className="w-1 h-5 rounded-full bg-primary flex-shrink-0" />
+                      <Building2 className="w-4 h-4 text-primary flex-shrink-0" />
+                      <span className="text-sm font-extrabold text-primary tracking-wide truncate">
+                        {bmNome}
+                      </span>
+                      <span className="text-[10px] font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full flex-shrink-0">
+                        {total}
+                      </span>
+                      <span className="text-[10px] text-primary/60 font-medium flex-shrink-0">
+                        {wabas.length} {wabas.length === 1 ? 'WABA' : 'WABAs'}
+                      </span>
+                      <span className="flex-1 h-px bg-primary/20 ml-1" />
+                    </div>
+
+                    {/* Cada WABA ocupa so a largura dos seus cards, para varias
+                        WABAs caberem na mesma linha. */}
+                    <div className="p-3 flex flex-wrap items-start gap-2.5">
+                      {wabas.map(({ wabaId, wabaNome, numerosDaWaba }) => (
+                        <div
+                          key={wabaId}
+                          className="w-full sm:w-auto sm:max-w-full rounded-lg border border-border/60 bg-background/70 p-2.5"
+                        >
+                          {/* Faixa da WABA — mais discreta que a da BM */}
+                          <div className="flex items-center gap-1.5 mb-2 max-w-full">
+                            <MessageSquare className="w-3.5 h-3.5 text-primary/60 flex-shrink-0" />
+                            <span className="text-xs font-bold truncate min-w-0">
+                              {wabaNome || 'WABA sem nome'}
+                            </span>
+                            <span className="text-[9px] font-bold bg-primary/15 text-primary px-1.5 py-0.5 rounded-full flex-shrink-0">
+                              {numerosDaWaba.length}
+                            </span>
+                            <span className="font-mono text-[9px] text-muted-foreground/70 ml-auto pl-2 flex-shrink-0">
+                              {wabaId}
+                            </span>
+                          </div>
+
+                          <div className="flex flex-wrap gap-2.5">
+                            {numerosDaWaba.map(renderNumberCard)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </section>
+            );
+          })}
         </div>
 
-        {projects.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.map((project, index) => (
-              <div key={project.id} style={{ animationDelay: `${index * 0.1}s` }}>
-                <ProjectCard project={project} numbers={allNumbers.filter(n => n.projectId === project.id)} />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <Card className="p-12 text-center border-dashed">
-            <FolderKanban className="w-12 h-12 mx-auto text-muted-foreground/30 mb-4" />
-            <h3 className="font-semibold text-lg mb-2">Nenhum projeto ainda</h3>
-            <p className="text-muted-foreground mb-6">Crie seu primeiro projeto para começar a monitorar seus números WhatsApp.</p>
-            <Button className="gradient-primary" onClick={() => setIsDialogOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Começar Agora
+        {/* Right Sidebar - Recent History */}
+        <aside className="w-full lg:w-72 border-t lg:border-t-0 lg:border-l border-border bg-white dark:bg-slate-900 flex flex-col shrink-0 min-h-0">
+          <div className="p-3 border-b border-border flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Activity className="w-4 h-4 text-primary" />
+              <h3 className="text-sm font-bold">Mudanças de Status</h3>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 text-muted-foreground hover:text-primary"
+              onClick={() => refetchChanges()}
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
             </Button>
-          </Card>
-        )}
-      </div>
-    </>
-  );
-};
-
-const Dashboard = () => {
-  const { user, can } = useAuth();
-
-  return (
-    <DashboardLayout>
-      <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-foreground">Olá, {user?.name?.split(' ')[0]} 👋</h1>
-            <span className="relative flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-            </span>
           </div>
-          <p className="text-muted-foreground mt-1">
-            {can('admin') ? 'Visão geral do sistema e gestão de usuários' : 'Monitore seus projetos e números WhatsApp'}
-          </p>
-        </div>
-        <Link to="/dashboard-v2" target="_blank">
-          <Button variant="outline" className="gap-2 group border-primary/20 hover:border-primary/50 transition-all">
-            <Maximize2 className="w-4 h-4 text-primary" />
-            <span>Abrir Dashboard V2</span>
-            <ArrowRight className="w-4 h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
-          </Button>
-        </Link>
-      </div>
-      {can('admin') ? <MasterDashboard /> : <UserDashboard />}
+          <div className="lg:flex-1 lg:overflow-y-auto p-3 space-y-2">
+            {recentChanges.length > 0 ? (
+              recentChanges.map((change) => (
+                <div 
+                  key={change.id} 
+                  className="relative pl-6 pb-3 border-l border-border last:pb-0 group cursor-pointer"
+                  onClick={() => setSelectedNumberId(change.phoneNumberId)}
+                >
+                  <div className={cn(
+                    "absolute left-[-4.5px] top-1.5 w-2 h-2 rounded-full border border-white dark:border-slate-900",
+                    change.direction === 'up' ? "bg-success" : "bg-destructive"
+                  )} />
+                  <div className="space-y-0.5">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[9px] font-bold text-primary">
+                          {format(new Date(change.changedAt), "dd/MM '•' HH:mm", { locale: ptBR })}
+                        </span>
+                        <p className="text-[10px] font-bold leading-tight group-hover:text-primary transition-colors truncate pr-1">{change.numberName}</p>
+                        <p className="text-[9px] text-muted-foreground truncate">{change.projectName}</p>
+                      </div>
+                      <div className="shrink-0 -mt-1 ml-1">
+                        {change.direction === 'up' 
+                          ? <TrendingUp className="w-6 h-6 text-success/20 group-hover:text-success/40 transition-colors" /> 
+                          : <TrendingDown className="w-6 h-6 text-destructive/20 group-hover:text-destructive/40 transition-colors" />
+                        }
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <div className="opacity-60 grayscale shrink-0">
+                        <QualityBadge rating={change.previousQuality} size="sm" />
+                      </div>
+                      <ChevronRight className="w-2 h-2 text-muted-foreground/50 shrink-0" />
+                      <div className="shrink-0">
+                        <QualityBadge rating={change.currentQuality} size="sm" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-center opacity-50">
+                <Activity className="w-8 h-8 mb-2" />
+                <p className="text-xs">Sem mudanças recentes</p>
+              </div>
+            )}
+          </div>
+        </aside>
+      </main>
+
+      <StatusHistoryModal 
+        number={allNumbers.find(n => n.id === selectedNumberId) || null}
+        open={!!selectedNumberId}
+        onOpenChange={(open) => !open && setSelectedNumberId(null)}
+      />
+    </div>
     </DashboardLayout>
   );
 };
