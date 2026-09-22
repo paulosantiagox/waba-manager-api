@@ -1,38 +1,10 @@
-import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { WhatsAppNumber, QualityRating } from '@/types';
 import { toast } from 'sonner';
 
 export function useWhatsAppNumbers(projectId?: string) {
-  const queryClient = useQueryClient();
 
-  // Subscription realtime integrada
-  useEffect(() => {
-    if (!projectId) return;
-
-    const channel = supabase
-      .channel(`whatsapp-numbers-${projectId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'waba_whatsapp_numbers',
-          filter: `project_id=eq.${projectId}`,
-        },
-        () => {
-          queryClient.invalidateQueries({ 
-            queryKey: ['whatsapp-numbers', projectId] 
-          });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [projectId, queryClient]);
 
   return useQuery({
     queryKey: ['whatsapp-numbers', projectId],
@@ -80,30 +52,7 @@ export function useWhatsAppNumbers(projectId?: string) {
 }
 
 export function useAllWhatsAppNumbers() {
-  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    const channel = supabase
-      .channel('whatsapp-numbers-all-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'waba_whatsapp_numbers',
-        },
-        () => {
-          queryClient.invalidateQueries({ 
-            queryKey: ['whatsapp-numbers-all'] 
-          });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [queryClient]);
 
   return useQuery({
     queryKey: ['whatsapp-numbers-all'],

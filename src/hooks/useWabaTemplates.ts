@@ -133,8 +133,6 @@ export function useTemplatesForWaba(wabaId: string | null, accessToken: string |
       return fetchWabaTemplates(wabaId, accessToken);
     },
     enabled: !!wabaId && !!accessToken,
-    staleTime: 0,        // sempre considera stale — rebusca ao focar a janela
-    refetchOnWindowFocus: true,  // rebusca ao voltar para a aba
     retry: 1,
   });
 }

@@ -151,7 +151,7 @@ const UserDashboard = () => {
   const projectIds = projects.map(p => p.id);
   const { data: recentChanges = [], refetch: refetchChanges } = useRecentStatusChanges(projectIds);
 
-  // A verificação roda sozinha no banco a cada 15 min; o botão só antecipa.
+  // A verificação roda sozinha no banco às 7h e 13h; o botão antecipa.
   const { mutateAsync: verificarSaude } = useVerificarSaude();
 
   // Avisos já verificados (lidos do banco)
@@ -257,7 +257,7 @@ const UserDashboard = () => {
     <>
       {/* Transparência: prova de que a verificação está rodando */}
       <p className="text-xs text-muted-foreground mb-3">
-        Bloqueios e banimentos verificados automaticamente a cada 15 min
+        Bloqueios e banimentos verificados automaticamente às 7h e às 13h — use "Atualizar Todos" para checar agora
         {ultimaVerificacao && (
           <> · última verificação às {format(new Date(ultimaVerificacao), 'HH:mm')}</>
         )}

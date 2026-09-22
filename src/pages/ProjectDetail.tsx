@@ -12,7 +12,6 @@ import { useProject } from '@/hooks/useProjects';
 import { useWhatsAppNumbers, useUpdateWhatsAppNumber, useCreateWhatsAppNumber, useDeleteWhatsAppNumber } from '@/hooks/useWhatsAppNumbers';
 import { useBusinessManagers, useCreateBusinessManager, useUpdateBusinessManager, useDeleteBusinessManager } from '@/hooks/useBusinessManagers';
 import { useCreateStatusHistory, useClearNumberNotifications, useCreateStatusChangeNotification, useAllStatusChangeNotifications } from '@/hooks/useStatusHistory';
-import { useAutoUpdateNotifications } from '@/hooks/useAutoUpdateNotifications';
 import { useNumberStatusInfo } from '@/hooks/useNumberStatusInfo';
 import { useNumberErrorState } from '@/hooks/useNumberErrorState';
 import { WhatsAppNumber, BusinessManager, QualityRating } from '@/types';
@@ -85,7 +84,6 @@ const ProjectDetail = () => {
   }, [statusNotifications]);
 
   // Hook para receber notificações de atualizações automáticas em tempo real
-  useAutoUpdateNotifications(id);
 
   const { activeNumbers, inactiveNumbers } = useMemo(() => {
     const filtered = numbers.filter(n => {

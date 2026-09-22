@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Project } from '@/types';
@@ -7,37 +6,9 @@ import { toast } from 'sonner';
 
 export function useProjects() {
   const { user, can } = useAuth();
-  const queryClient = useQueryClient();
   // admin+master enxergam todos os projetos; user/consultor só os próprios.
   const veTudo = can('admin');
 
-  useEffect(() => {
-    if (!user) return;
-
-    const channel = supabase
-      .channel('projects-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'waba_projects',
-        },
-        () => {
-          queryClient.invalidateQueries({ 
-            queryKey: ['projects', user?.id, veTudo] 
-          });
-          queryClient.invalidateQueries({ 
-            queryKey: ['all-projects'] 
-          });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user, veTudo, queryClient]);
 
   return useQuery({
     queryKey: ['projects', user?.id, veTudo],

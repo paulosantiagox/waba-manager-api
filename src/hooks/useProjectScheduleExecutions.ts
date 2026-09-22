@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -16,37 +15,7 @@ export interface ScheduleExecution {
 
 // Busca execuções de hoje para um projeto
 export function useProjectScheduleExecutions(projectId?: string) {
-  const queryClient = useQueryClient();
 
-  // Subscription realtime integrada
-  useEffect(() => {
-    if (!projectId) return;
-
-    const channel = supabase
-      .channel(`executions-${projectId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'waba_project_schedule_executions',
-          filter: `project_id=eq.${projectId}`,
-        },
-        () => {
-          queryClient.invalidateQueries({ 
-            queryKey: ['project-schedule-executions', projectId] 
-          });
-          queryClient.invalidateQueries({ 
-            queryKey: ['last-project-execution', projectId] 
-          });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [projectId, queryClient]);
 
   return useQuery({
     queryKey: ['project-schedule-executions', projectId],

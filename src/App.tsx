@@ -20,7 +20,18 @@ import Broadcasts from "./pages/Broadcasts";
 import Chat from "./pages/Chat";
 import { Loader2 } from "lucide-react";
 
-const queryClient = new QueryClient();
+// Sem vigília: o banco é compartilhado com os sistemas de vendas. Nada de
+// recarregar sozinho ao voltar para a aba — quem quer dado novo usa o botão
+// "Atualizar". Dado recém-buscado vale 5 min antes de ser considerado velho.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: 5 * 60 * 1000,
+    },
+  },
+});
 
 const Carregando = () => (
   <div className="min-h-screen flex items-center justify-center">

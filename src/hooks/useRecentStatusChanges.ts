@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { QualityRating } from '@/types';
@@ -18,30 +17,7 @@ export interface RecentStatusChange {
 }
 
 export function useRecentStatusChanges(projectIds?: string[]) {
-  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    const channel = supabase
-      .channel('status-history-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'waba_status_history',
-        },
-        () => {
-          queryClient.invalidateQueries({ 
-            queryKey: ['recent-status-changes', projectIds] 
-          });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [projectIds, queryClient]);
 
   return useQuery({
     queryKey: ['recent-status-changes', projectIds],

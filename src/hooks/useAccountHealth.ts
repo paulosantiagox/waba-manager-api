@@ -107,8 +107,8 @@ export function useWabaHealth() {
 
 /**
  * Pede uma verificação imediata. Usa o MESMO mecanismo do agendamento automático
- * (funções no banco + pg_net, a cada 15 min): cobre todas as contas, grava erro
- * da Meta como estado e os tokens não passam pelo navegador.
+ * (funções no banco + pg_net, 2x ao dia): cobre todas as contas, grava erro da
+ * Meta como estado e os tokens não passam pelo navegador.
  *
  * Devolve quantas consultas foram disparadas; 0 = já havia uma em andamento.
  */
@@ -121,11 +121,14 @@ export function useVerificarSaude() {
       if (error) throw error;
 
       if ((disparadas as number) > 0) {
-        // As respostas da Meta chegam em poucos segundos. O que atrasar é
-        // processado pelo agendamento de 2 em 2 minutos.
-        await new Promise(resolve => setTimeout(resolve, 8000));
-        const { error: erroProcessar } = await supabase.rpc('waba_saude_processar_agora');
-        if (erroProcessar) throw erroProcessar;
+        // As respostas da Meta chegam em segundos. Não há mais processamento
+        // rodando o tempo todo no banco, então o próprio botão recolhe: uma
+        // passada logo e outra para as respostas que atrasarem.
+        for (const espera of [8000, 12000]) {
+          await new Promise(resolve => setTimeout(resolve, espera));
+          const { error: erroProcessar } = await supabase.rpc('waba_saude_processar_agora');
+          if (erroProcessar) throw erroProcessar;
+        }
       }
 
       return (disparadas as number) ?? 0;
@@ -133,7 +136,7 @@ export function useVerificarSaude() {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['waba-health'] });
       queryClient.invalidateQueries({ queryKey: ['whatsapp-numbers'] });
-      queryClient.invalidateQueries({ queryKey: ['all-whatsapp-numbers'] });
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-numbers-all'] });
     },
   });
 }

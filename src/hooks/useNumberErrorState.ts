@@ -65,7 +65,6 @@ export function useNumberErrorState(numberIds: string[]) {
       return errorMap;
     },
     enabled: numberIds.length > 0,
-    refetchInterval: 60000, // Atualiza a cada minuto
     staleTime: 30000,
   });
 }
