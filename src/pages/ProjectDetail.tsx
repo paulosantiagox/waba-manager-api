@@ -5,7 +5,6 @@ import EditNumberModal from '@/components/modals/EditNumberModal';
 import StatusHistoryModal from '@/components/modals/StatusHistoryModal';
 import BMModal from '@/components/modals/BMModal';
 import AddNumberFromMetaModal from '@/components/modals/AddNumberFromMetaModal';
-import UpdateScheduleModal from '@/components/modals/UpdateScheduleModal';
 import ConfirmDialog from '@/components/modals/ConfirmDialog';
 import QualityBadge from '@/components/dashboard/QualityBadge';
 import { useProject } from '@/hooks/useProjects';
@@ -50,7 +49,6 @@ const ProjectDetail = () => {
   const [editBM, setEditBM] = useState<BusinessManager | null>(null);
   const [isNewBMOpen, setIsNewBMOpen] = useState(false);
   const [deleteBM, setDeleteBM] = useState<BusinessManager | null>(null);
-  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
 
   const { data: project, isLoading: projectLoading } = useProject(id || '');
   const { data: numbers = [], isLoading: numbersLoading } = useWhatsAppNumbers(id);
@@ -565,10 +563,6 @@ const ProjectDetail = () => {
             {project.description && <p className="text-muted-foreground mt-1">{project.description}</p>}
           </div>
           <div className="flex gap-2 flex-wrap">
-            <Button variant="outline" onClick={() => setIsScheduleModalOpen(true)}>
-              <Clock className="w-4 h-4 mr-2" />
-              Horários
-            </Button>
             <Button variant="outline" onClick={handleUpdateAllStatus} disabled={isUpdating || numbers.length === 0}>
               {isUpdating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
               {isUpdating ? 'Atualizando...' : 'Atualizar Status'}
@@ -686,7 +680,6 @@ const ProjectDetail = () => {
       <StatusHistoryModal number={historyNumber} open={!!historyNumber} onOpenChange={(open) => !open && setHistoryNumber(null)} />
       <BMModal bm={editBM} projectId={id || ''} open={isNewBMOpen} onOpenChange={setIsNewBMOpen} onSave={handleSaveBM} existingBMs={projectBMs} />
       <AddNumberFromMetaModal open={isAddNumberModalOpen} onOpenChange={setIsAddNumberModalOpen} projectId={id || ''} businessManagers={projectBMs} onAddNumber={handleAddNumber} />
-      <UpdateScheduleModal projectId={id || ''} open={isScheduleModalOpen} onOpenChange={setIsScheduleModalOpen} />
       <ConfirmDialog open={!!deleteNumber} onOpenChange={(open) => !open && setDeleteNumber(null)} title="Remover Número" description={`Tem certeza que deseja remover o número ${deleteNumber?.displayPhoneNumber}?`} confirmText="Remover" onConfirm={handleDeleteNumber} variant="destructive" />
       <ConfirmDialog open={!!deleteBM} onOpenChange={(open) => !open && setDeleteBM(null)} title="Remover BM" description={`Tem certeza que deseja remover a BM "${deleteBM?.mainBmName}"?`} confirmText="Remover" onConfirm={handleDeleteBM} variant="destructive" />
     </DashboardLayout>

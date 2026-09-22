@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { format } from 'date-fns';
 import { Ban, AlertTriangle } from 'lucide-react';
 import { WhatsAppNumber } from '@/types';
+import { useBusinessManagers } from '@/hooks/useBusinessManagers';
 import {
   useWabaHealth, numeroBloqueado, rotuloStatusNumero,
   contaBloqueada, contaComAviso, numeroComAviso,
@@ -10,11 +11,28 @@ import {
 /**
  * Alertas de restrição da Meta (banimento, bloqueio, pagamento, avisos).
  *
- * Lê só o que já está salvo no banco — a verificação na Meta roda às 7h e 13h
- * e pelo botão "Atualizar Todos". Não consulta nada sozinho.
+ * Lê só o que já está salvo no banco — a verificação na Meta roda nos horários
+ * configurados (botão "Horários") e pelo "Atualizar Todos". Não consulta nada
+ * sozinho.
  */
 const AlertasSaudeMeta = ({ numeros }: { numeros: WhatsAppNumber[] }) => {
   const { data: saudeWabas = {} } = useWabaHealth();
+  const { data: bms = [] } = useBusinessManagers();
+
+  // "Autoflix" sozinho não identifica a conta: várias WABAs têm esse nome.
+  const bmDaWaba = useMemo(() => {
+    const nomeBm = new Map(bms.map(b => [b.id, b.mainBmName]));
+    const mapa = new Map<string, string>();
+    for (const n of numeros) {
+      if (n.businessManagerId && !mapa.has(n.wabaId)) {
+        const nome = nomeBm.get(n.businessManagerId);
+        if (nome) mapa.set(n.wabaId, nome);
+      }
+    }
+    return mapa;
+  }, [bms, numeros]);
+  const rotuloConta = (wabaId: string, wabaName: string | null) =>
+    `${wabaName ?? wabaId}${bmDaWaba.has(wabaId) ? ` · BM ${bmDaWaba.get(wabaId)}` : ''}`;
 
   // WABAs em uso: com pelo menos um número visível. As aposentadas (todos os
   // números ocultos) seguem sendo verificadas, mas não poluem o alerta.
@@ -51,7 +69,7 @@ const AlertasSaudeMeta = ({ numeros }: { numeros: WhatsAppNumber[] }) => {
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
-        Bloqueios e banimentos verificados automaticamente às 7h e às 13h — use
+        Bloqueios e banimentos verificados nos horários configurados — use
         "Atualizar Todos" para checar agora
         {ultimaVerificacao && (
           <> · última verificação em {format(new Date(ultimaVerificacao), "dd/MM 'às' HH:mm")}</>
@@ -76,7 +94,7 @@ const AlertasSaudeMeta = ({ numeros }: { numeros: WhatsAppNumber[] }) => {
 
           {contasBloqueadas.map(c => (
             <p key={c.wabaId} className="text-sm text-foreground/80">
-              <strong>{c.wabaName ?? c.wabaId}:</strong>{' '}
+              <strong>{rotuloConta(c.wabaId, c.wabaName)}:</strong>{' '}
               {c.erroApi
                 ? `a Meta recusou a consulta — possível BM banida ou token derrubado (${c.erroApi})`
                 : c.errors.length > 0
@@ -114,7 +132,7 @@ const AlertasSaudeMeta = ({ numeros }: { numeros: WhatsAppNumber[] }) => {
 
           {contasComAviso.map(c => (
             <p key={c.wabaId} className="text-sm text-foreground/80">
-              <strong>{c.wabaName ?? c.wabaId}:</strong>{' '}
+              <strong>{rotuloConta(c.wabaId, c.wabaName)}:</strong>{' '}
               {[
                 c.canSendMessage === 'LIMITED' ? 'envio limitado' : null,
                 c.accountReviewStatus && c.accountReviewStatus !== 'APPROVED'

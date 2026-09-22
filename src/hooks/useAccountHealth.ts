@@ -91,7 +91,11 @@ export function useWabaHealth() {
           accountReviewStatus: (row.account_review_status as string) ?? null,
           canSendMessage: (row.can_send_message as string) ?? null,
           errors: (row.errors as MetaHealthError[]) ?? [],
-          warnings: (row.warnings as string[]) ?? [],
+          // "Your app is not subscribed to the message webhook": esperado — quem
+          // recebe as mensagens é o app do fornecedor (DataCrazy), não o nosso.
+          warnings: ((row.warnings as string[]) ?? []).filter(
+            w => !/not subscribed to the message webhook/i.test(w)
+          ),
           checkedAt: row.checked_at as string,
           erroApi: (row.erro_api as string) ?? null,
           erroApiCodigo: (row.erro_api_codigo as number) ?? null,
@@ -107,7 +111,7 @@ export function useWabaHealth() {
 
 /**
  * Pede uma verificação imediata. Usa o MESMO mecanismo do agendamento automático
- * (funções no banco + pg_net, 2x ao dia): cobre todas as contas, grava erro da
+ * (funções no banco + pg_net, nos horários configurados): cobre todas as contas, grava erro da
  * Meta como estado e os tokens não passam pelo navegador.
  *
  * Devolve quantas consultas foram disparadas; 0 = já havia uma em andamento.

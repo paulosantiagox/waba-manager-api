@@ -32,11 +32,15 @@ import { cn } from '@/lib/utils';
 import { supabase as lovableSupabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import StatusHistoryModal from '@/components/modals/StatusHistoryModal';
+import HorariosAtualizacaoModal from '@/components/modals/HorariosAtualizacaoModal';
 
 const Dashboard = () => {
   const { can } = useAuth();
   // Atualizar consulta a Meta: é ação de operação (user+). Consultor só lê.
   const podeAtualizar = can('user');
+  // Horários valem para o sistema inteiro: só admin mexe.
+  const podeConfigurar = can('admin');
+  const [horariosAberto, setHorariosAberto] = useState(false);
   const { data: projects = [], isLoading: loadingProjects } = useProjects();
   const { data: allNumbers = [], isLoading: loadingNumbers, refetch: refetchNumbers } = useAllWhatsAppNumbers();
   const { mutateAsync: verificarSaude } = useVerificarSaude();
@@ -304,6 +308,12 @@ const Dashboard = () => {
             </Button>
           </div>
 
+          {podeConfigurar && (
+            <Button variant="outline" size="sm" className="gap-2 h-9" onClick={() => setHorariosAberto(true)}>
+              <Clock className="w-4 h-4" />
+              Horários
+            </Button>
+          )}
           {podeAtualizar && (
             <Button
               size="sm"
@@ -475,6 +485,7 @@ const Dashboard = () => {
         open={!!selectedNumberId}
         onOpenChange={(open) => !open && setSelectedNumberId(null)}
       />
+      <HorariosAtualizacaoModal open={horariosAberto} onOpenChange={setHorariosAberto} />
     </div>
     </DashboardLayout>
   );

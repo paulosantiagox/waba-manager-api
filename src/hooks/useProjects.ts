@@ -118,21 +118,8 @@ export function useCreateProject() {
 
       if (error) throw error;
 
-      // Create default schedules: 06:00, 12:00, 18:00
-      const defaultSchedules = [
-        { project_id: data.id, time: '06:00', order: 1 },
-        { project_id: data.id, time: '12:00', order: 2 },
-        { project_id: data.id, time: '18:00', order: 3 },
-      ];
-
-      const { error: scheduleError } = await supabase
-        .from('waba_project_update_schedules')
-        .insert(defaultSchedules);
-
-      if (scheduleError) {
-        console.error('Erro ao criar horários padrão:', scheduleError);
-        // Don't throw - project was created successfully
-      }
+      // Horários de atualização são globais (waba_horarios_atualizacao):
+      // o projeto novo entra neles automaticamente.
 
       return data;
     },
