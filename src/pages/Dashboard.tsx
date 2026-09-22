@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import AlertasSaudeMeta from '@/components/dashboard/AlertasSaudeMeta';
 import { useProjects } from '@/hooks/useProjects';
 import { useAllWhatsAppNumbers } from '@/hooks/useWhatsAppNumbers';
 import { useRecentStatusChanges } from '@/hooks/useRecentStatusChanges';
@@ -334,8 +333,6 @@ const Dashboard = () => {
       <main className="flex-1 flex flex-col lg:flex-row lg:overflow-hidden min-h-0">
         {/* Main Content Area */}
         <div className="lg:flex-1 lg:overflow-y-auto p-4 lg:p-6 space-y-6">
-          <AlertasSaudeMeta numeros={allNumbers} />
-
           {projects.map((project) => {
             const projectNumbers = userNumbers.filter(n => n.projectId === project.id);
             if (projectNumbers.length === 0) return null;

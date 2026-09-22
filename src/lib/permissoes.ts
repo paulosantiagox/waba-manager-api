@@ -16,6 +16,7 @@ export const NIVEL_ROTA: Record<string, string> = {
   '/dashboard': 'consultor',
   '/campaigns': 'consultor',
   '/broadcasts': 'consultor',
+  '/alertas': 'consultor',
   '/projects': 'user',
   '/templates': 'user',
   '/settings': 'consultor',

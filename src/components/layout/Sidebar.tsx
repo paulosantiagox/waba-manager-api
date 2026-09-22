@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   FileText,
   Send,
+  ShieldAlert,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { BrasiliaClockWidget } from './BrasiliaClockWidget';
@@ -36,6 +37,7 @@ const Sidebar = ({ collapsed, onToggle, isMobile = false }: SidebarProps) => {
     { icon: Megaphone, label: 'Campanhas', href: '/campaigns' },
     { icon: Send, label: 'Disparos', href: '/broadcasts' },
     { icon: FileText, label: 'Templates', href: '/templates' },
+    { icon: ShieldAlert, label: 'Alertas da Meta', href: '/alertas' },
     { icon: Users, label: 'Usuários', href: '/users' },
   ].filter((item) => podeRota(role, item.href));
 

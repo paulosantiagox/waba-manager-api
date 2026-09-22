@@ -16,7 +16,7 @@ import {
  * configurados (botão "Horários") e pelo "Atualizar Todos". Não consulta nada
  * sozinho.
  */
-const AlertasSaudeMeta = ({ numeros }: { numeros: WhatsAppNumber[] }) => {
+const AlertasSaudeMeta = ({ numeros, abertoPorPadrao = false }: { numeros: WhatsAppNumber[]; abertoPorPadrao?: boolean }) => {
   const { data: saudeWabas = {} } = useWabaHealth();
   const { data: bms = [] } = useBusinessManagers();
 
@@ -63,6 +63,7 @@ const AlertasSaudeMeta = ({ numeros }: { numeros: WhatsAppNumber[] }) => {
 
   // Fechado por padrão: o resumo de uma linha basta no dia a dia.
   const [aberto, setAberto] = useState<boolean>(() => {
+    if (abertoPorPadrao) return true;
     try { return localStorage.getItem('waba:alertas-meta-aberto') === '1'; } catch { return false; }
   });
   const alternar = () => {

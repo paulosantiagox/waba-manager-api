@@ -16,6 +16,7 @@ import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import Templates from "./pages/Templates";
 import Broadcasts from "./pages/Broadcasts";
+import AlertasMeta from "./pages/AlertasMeta";
 import { Loader2 } from "lucide-react";
 
 // Sem vigília: o banco é compartilhado com os sistemas de vendas. Nada de
@@ -71,6 +72,7 @@ const AppRoutes = () => {
       <Route path="/projects/:id" element={<RotaProtegida nivelMinimo={nivelDaRota("/projects")}><ProjectDetail /></RotaProtegida>} />
       <Route path="/campaigns" element={<RotaProtegida nivelMinimo={nivelDaRota("/campaigns")}><Campaigns /></RotaProtegida>} />
       <Route path="/broadcasts" element={<RotaProtegida nivelMinimo={nivelDaRota("/broadcasts")}><Broadcasts /></RotaProtegida>} />
+      <Route path="/alertas" element={<RotaProtegida nivelMinimo={nivelDaRota("/alertas")}><AlertasMeta /></RotaProtegida>} />
       <Route path="/templates" element={<RotaProtegida nivelMinimo={nivelDaRota("/templates")}><Templates /></RotaProtegida>} />
       <Route path="/users" element={<RotaProtegida nivelMinimo={nivelDaRota("/users")}><UsersPage /></RotaProtegida>} />
       <Route path="/settings" element={<RotaProtegida nivelMinimo={nivelDaRota("/settings")}><Settings /></RotaProtegida>} />
