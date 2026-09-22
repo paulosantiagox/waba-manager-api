@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import { Ban, AlertTriangle } from 'lucide-react';
+import { Ban, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { WhatsAppNumber } from '@/types';
 import { useBusinessManagers } from '@/hooks/useBusinessManagers';
 import {
@@ -60,90 +61,125 @@ const AlertasSaudeMeta = ({ numeros }: { numeros: WhatsAppNumber[] }) => {
     [saudeWabas, wabasEmUso]
   );
 
+  // Fechado por padrão: o resumo de uma linha basta no dia a dia.
+  const [aberto, setAberto] = useState<boolean>(() => {
+    try { return localStorage.getItem('waba:alertas-meta-aberto') === '1'; } catch { return false; }
+  });
+  const alternar = () => {
+    setAberto(v => {
+      try { localStorage.setItem('waba:alertas-meta-aberto', v ? '0' : '1'); } catch { /* ignora */ }
+      return !v;
+    });
+  };
+
   // Quando foi a última verificação de fato (a mais recente entre as contas).
   const ultimaVerificacao = useMemo(() => {
     const datas = Object.values(saudeWabas).map(c => c.checkedAt).filter(Boolean);
     return datas.length ? datas.sort().at(-1)! : null;
   }, [saudeWabas]);
 
+  const temBloqueio = numerosBloqueados.length > 0 || contasBloqueadas.length > 0;
+  const temAviso = numerosComAviso.length > 0 || contasComAviso.length > 0;
+
+  const rodape = (
+    <span className="text-muted-foreground">
+      verificado nos horários configurados
+      {ultimaVerificacao && <> · última em {format(new Date(ultimaVerificacao), "dd/MM 'às' HH:mm")}</>}
+    </span>
+  );
+
+  if (!temBloqueio && !temAviso) {
+    return <p className="text-xs">{rodape}</p>;
+  }
+
+  // Resumo de uma linha: só as contagens. O detalhe fica escondido.
+  const partes: string[] = [];
+  if (contasBloqueadas.length) partes.push(`${contasBloqueadas.length} conta(s) bloqueada(s)`);
+  if (numerosBloqueados.length) partes.push(`${numerosBloqueados.length} número(s) bloqueado(s)`);
+  if (numerosComAviso.length) partes.push(`${numerosComAviso.length} número(s) com pendência`);
+  if (contasComAviso.length) partes.push(`${contasComAviso.length} conta(s) com aviso`);
+
   return (
-    <div className="space-y-3">
-      <p className="text-xs text-muted-foreground">
-        Bloqueios e banimentos verificados nos horários configurados — use
-        "Atualizar Todos" para checar agora
-        {ultimaVerificacao && (
-          <> · última verificação em {format(new Date(ultimaVerificacao), "dd/MM 'às' HH:mm")}</>
-        )}
-      </p>
+    <div className={cn(
+      'rounded-lg border text-xs',
+      temBloqueio ? 'border-destructive/40 bg-destructive/5' : 'border-warning/40 bg-warning/5'
+    )}>
+      <button
+        type="button"
+        onClick={alternar}
+        className="w-full flex items-center gap-2 px-3 py-2 text-left"
+      >
+        {temBloqueio
+          ? <Ban className="w-3.5 h-3.5 text-destructive shrink-0" />
+          : <AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0" />}
+        <span className={cn('font-semibold', temBloqueio ? 'text-destructive' : 'text-warning')}>
+          Meta:
+        </span>
+        <span className="text-foreground/80 truncate">{partes.join(' · ')}</span>
+        <span className="hidden sm:inline">{rodape}</span>
+        <span className="ml-auto shrink-0 text-muted-foreground flex items-center gap-1">
+          {aberto ? 'ocultar' : 'detalhes'}
+          {aberto ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+        </span>
+      </button>
 
-      {(numerosBloqueados.length > 0 || contasBloqueadas.length > 0) && (
-        <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Ban className="w-4 h-4 text-destructive" />
-            <h3 className="font-semibold text-destructive text-sm">Restrições detectadas na Meta</h3>
-          </div>
-
-          {numerosBloqueados.length > 0 && (
-            <p className="text-sm text-foreground/80 mb-1">
-              <strong>{numerosBloqueados.length} número(s) bloqueado(s):</strong>{' '}
-              {numerosBloqueados
-                .map(n => `${n.customName || n.verifiedName} (${rotuloStatusNumero(n.metaStatus)})`)
-                .join(', ')}
-            </p>
+      {aberto && (
+        <div className="px-3 pb-3 space-y-3 text-sm">
+          {temBloqueio && (
+            <div className="space-y-1">
+              {numerosBloqueados.length > 0 && (
+                <p className="text-foreground/80">
+                  <strong>{numerosBloqueados.length} número(s) bloqueado(s):</strong>{' '}
+                  {numerosBloqueados
+                    .map(n => `${n.customName || n.verifiedName} (${rotuloStatusNumero(n.metaStatus)})`)
+                    .join(', ')}
+                </p>
+              )}
+              {contasBloqueadas.map(c => (
+                <p key={c.wabaId} className="text-foreground/80">
+                  <strong>{rotuloConta(c.wabaId, c.wabaName)}:</strong>{' '}
+                  {c.erroApi
+                    ? `a Meta recusou a consulta — possível BM banida ou token derrubado (${c.erroApi})`
+                    : c.errors.length > 0
+                      ? c.errors.map(e => e.error_description).join(' · ')
+                      : 'conta sem permissão de envio'}
+                </p>
+              ))}
+              <p className="text-xs text-muted-foreground">
+                Verifique em business.facebook.com/accountquality. Erro de pagamento se resolve
+                atualizando o meio de pagamento da conta.
+              </p>
+            </div>
           )}
 
-          {contasBloqueadas.map(c => (
-            <p key={c.wabaId} className="text-sm text-foreground/80">
-              <strong>{rotuloConta(c.wabaId, c.wabaName)}:</strong>{' '}
-              {c.erroApi
-                ? `a Meta recusou a consulta — possível BM banida ou token derrubado (${c.erroApi})`
-                : c.errors.length > 0
-                  ? c.errors.map(e => e.error_description).join(' · ')
-                  : 'conta sem permissão de envio'}
-            </p>
-          ))}
-
-          <p className="text-xs text-muted-foreground mt-2">
-            Verifique em business.facebook.com/accountquality. Erro de pagamento se resolve
-            atualizando o meio de pagamento da conta.
-          </p>
-        </div>
-      )}
-
-      {(numerosComAviso.length > 0 || contasComAviso.length > 0) && (
-        <div className="rounded-xl border border-warning/40 bg-warning/5 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle className="w-4 h-4 text-warning" />
-            <h3 className="font-semibold text-warning text-sm">Avisos da Meta</h3>
-          </div>
-
-          {numerosComAviso.length > 0 && (
-            <p className="text-sm text-foreground/80 mb-1">
-              <strong>{numerosComAviso.length} número(s) com pendência:</strong>{' '}
-              {numerosComAviso
-                .map(n => {
-                  const motivo = rotuloStatusNumero(n.metaStatus)
-                    ?? (n.nameStatus === 'DECLINED' ? 'nome reprovado' : 'nome em análise');
-                  return `${n.customName || n.verifiedName} (${motivo})`;
-                })
-                .join(', ')}
-            </p>
+          {temAviso && (
+            <div className="space-y-1">
+              {numerosComAviso.length > 0 && (
+                <p className="text-foreground/80">
+                  <strong>{numerosComAviso.length} número(s) com pendência:</strong>{' '}
+                  {numerosComAviso
+                    .map(n => {
+                      const motivo = rotuloStatusNumero(n.metaStatus)
+                        ?? (n.nameStatus === 'DECLINED' ? 'nome reprovado' : 'nome em análise');
+                      return `${n.customName || n.verifiedName} (${motivo})`;
+                    })
+                    .join(', ')}
+                </p>
+              )}
+              {contasComAviso.map(c => (
+                <p key={c.wabaId} className="text-foreground/80">
+                  <strong>{rotuloConta(c.wabaId, c.wabaName)}:</strong>{' '}
+                  {[
+                    c.canSendMessage === 'LIMITED' ? 'envio limitado' : null,
+                    c.accountReviewStatus && c.accountReviewStatus !== 'APPROVED'
+                      ? `revisão ${c.accountReviewStatus.toLowerCase()}`
+                      : null,
+                    ...c.warnings,
+                  ].filter(Boolean).join(' · ')}
+                </p>
+              ))}
+            </div>
           )}
-
-          {contasComAviso.map(c => (
-            <p key={c.wabaId} className="text-sm text-foreground/80">
-              <strong>{rotuloConta(c.wabaId, c.wabaName)}:</strong>{' '}
-              {[
-                c.canSendMessage === 'LIMITED' ? 'envio limitado' : null,
-                c.accountReviewStatus && c.accountReviewStatus !== 'APPROVED'
-                  ? `revisão ${c.accountReviewStatus.toLowerCase()}`
-                  : null,
-                ...c.warnings,
-              ]
-                .filter(Boolean)
-                .join(' · ')}
-            </p>
-          ))}
         </div>
       )}
     </div>
